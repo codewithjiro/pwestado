@@ -21,11 +21,11 @@
 
 ## Acceptance gate
 
-- [ ] Select A, select different B, independently analyze both.
-- [ ] Side-by-side data and map/site markers match their sites.
-- [ ] Settings parity enforced; sample/live sources distinguishable.
-- [ ] Appropriate uncertainties and missing scores shown; tests pass.
-- [ ] Code/test gate verified; physical-device walkthrough deferred to Phase 06.
+- [x] Select A, select different B, independently analyze both.
+- [ ] Side-by-side data and map/site markers match their sites. *(Side-by-side table verified by widget tests; lettered A/B map pins implemented but not yet seen on a device, pending Phase 06.)*
+- [x] Settings parity enforced; sample/live sources distinguishable.
+- [x] Appropriate uncertainties and missing scores shown; tests pass.
+- [x] Code/test gate verified; physical-device walkthrough deferred to Phase 06.
 
 ## Stop
 

@@ -11,12 +11,15 @@ import '../../../../core/config/mapbox_config.dart';
 import '../../../../core/models/selected_site.dart';
 import '../../../../core/utils/geo.dart';
 import '../../../../core/utils/redact.dart';
+import '../../../comparison/domain/site_comparison.dart';
+import '../../../comparison/state/comparison_controller.dart';
 import '../../../discovery/domain/competitors.dart';
 import '../../../discovery/presentation/competitor_results.dart';
 import '../../../discovery/presentation/source_labels.dart';
 import '../../../discovery/state/competitor_controller.dart';
 import '../../data/location_service.dart';
 import '../../state/explore_controller.dart';
+import 'compare_pin_image.dart';
 import 'competitor_pin_image.dart';
 import 'map_controls.dart';
 import 'map_unavailable.dart';
@@ -80,6 +83,7 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
   PolygonAnnotationManager? _radiusManager;
   PointAnnotationManager? _competitorManager;
   PointAnnotationManager? _pinManager;
+  PointAnnotationManager? _compareManager;
   Cancelable? _competitorTaps;
   PointAnnotation? _sitePin;
   Uint8List? _pinImage;
@@ -91,6 +95,9 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
   String? _drawnSelection;
   final _competitorPins = <String, PointAnnotation>{};
   final _annotationToBusiness = <String, String>{};
+  final _comparePins = <CompareSlot, PointAnnotation>{};
+  final _drawnCompareSites = <CompareSlot, SelectedSite>{};
+  final _compareImages = <CompareSlot, Uint8List>{};
 
   Future<void> _mapSync = Future.value();
   bool _styleLoaded = false;
@@ -207,6 +214,7 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
     _mapSync = _mapSync
         .then((_) async {
           await _syncSitePin();
+          await _syncComparePins();
           await _syncCompetitors();
         })
         .catchError((Object e) {
@@ -215,8 +223,9 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
   }
 
   /// Creates the annotation layers once. Creation order is drawing order:
-  /// the radius ring at the bottom, competitors above it, the site pin on
-  /// top so it is never hidden by a nearby competitor.
+  /// the radius ring at the bottom, competitors above it, then the Site A/B
+  /// pins, and the site pin on top so it is never hidden by a nearby
+  /// competitor.
   Future<bool> _ensureManagers() async {
     final map = _map;
     if (map == null || !_styleLoaded || !mounted) return false;
@@ -236,6 +245,13 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
     _competitorTaps = competitors.tapEvents(onTap: _onCompetitorTap);
     _competitorManager = competitors;
 
+    final compare = await annotations.createPointAnnotationManager(
+      id: 'pwestado-compare-sites',
+    );
+    await compare.setIconAllowOverlap(true);
+    await compare.setIconIgnorePlacement(true);
+    _compareManager = compare;
+
     final site = await annotations.createPointAnnotationManager(
       id: 'pwestado-selected-site',
     );
@@ -247,8 +263,14 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
   Future<void> _syncSitePin() async {
     if (!await _ensureManagers()) return;
     final site = ref.read(exploreControllerProvider).site;
+    final slots = ref.read(comparisonControllerProvider);
+    // A pin stored as Site A/B is drawn with its letter instead; the plain
+    // pin on the same spot would hide it.
+    final shownAsSlot =
+        site != null &&
+        (slots.a.site?.id == site.id || slots.b.site?.id == site.id);
 
-    if (site == null) {
+    if (site == null || shownAsSlot) {
       if (_sitePin != null) {
         await _pinManager!.deleteAll();
         _sitePin = null;
@@ -274,6 +296,34 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
         iconAnchor: IconAnchor.BOTTOM,
       ),
     );
+  }
+
+  /// One lettered pin per assigned comparison slot, at that slot's own
+  /// stored site (never the current map pin unless it was assigned).
+  Future<void> _syncComparePins() async {
+    if (!await _ensureManagers()) return;
+    final slots = ref.read(comparisonControllerProvider);
+    for (final slot in CompareSlot.values) {
+      final site = slots[slot].site;
+      if (site == _drawnCompareSites[slot]) continue;
+
+      final existing = _comparePins.remove(slot);
+      _drawnCompareSites.remove(slot);
+      if (existing != null) await _compareManager!.delete(existing);
+      if (site == null) continue;
+
+      final image = _compareImages[slot] ??= await renderComparePinPng(slot);
+      final pin = await _compareManager!.create(
+        PointAnnotationOptions(
+          geometry: Point(coordinates: Position(site.longitude, site.latitude)),
+          image: image,
+          iconAnchor: IconAnchor.BOTTOM,
+          symbolSortKey: slot == CompareSlot.a ? 1 : 0,
+        ),
+      );
+      _comparePins[slot] = pin;
+      _drawnCompareSites[slot] = site;
+    }
   }
 
   /// Mirrors the competitor search state: markers for exactly the records
@@ -445,6 +495,10 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
       // Bring GPS fixes into view; a long-pressed site is already on screen.
       if (next != null && next.source.isGps && next != prev) _flyToSite(next);
     });
+    ref.listen(
+      comparisonControllerProvider.select((s) => (s.a.site, s.b.site)),
+      (_, _) => _queueMapSync(),
+    );
     ref.listen(exploreControllerProvider.select((s) => s.locationStatus), (
       prev,
       next,

@@ -69,6 +69,10 @@ Future<void> searchAndAnalyze(
   await tester.pumpAndSettle();
 
   await scrollTo(tester, find.text(SiteAnalysisSection.analyzeLabel));
+  // Keep the whole card in view: the loading state is shorter than the
+  // intro, and more content (the comparison card) follows below.
+  await tester.ensureVisible(find.byType(SiteAnalysisSection));
+  await tester.pumpAndSettle();
   await tester.tap(find.text(SiteAnalysisSection.analyzeLabel));
   await tester.pump();
 }
