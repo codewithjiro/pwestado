@@ -14,6 +14,16 @@
 8. Record **what was really verified**. If APIs are unavailable, use clearly labeled sample mode during pitch; never mislabel data as live.
 9. Note the final APK's exact filesystem path and how to install it. Verify APK exists before claiming build success.
 
+## Consolidated device validation
+
+This is the **single mandatory complete Android regression gate** for Phases 04-06. Earlier phases used targeted tests to avoid repetitive builds.
+
+- Run `flutter analyze` and the complete `flutter test` suite on stabilized code. Repeat only after fixing a genuine regression.
+- With a valid public Mapbox token injected via `--dart-define`, build **one release APK**; verify its actual path. Skip a separate debug APK build unless troubleshooting requires it.
+- Install the release APK on the physical POCO phone and test Mapbox, GPS/denial, long-press pin, category/radius, Overpass live/empty/error, scoring evidence, A/B comparison and clearly labeled sample mode.
+- Use Santa Ana for the honest sparse-data case and a verified populated location for a convincing live demonstration. Preserve source and data limitations.
+- Rebuild/reinstall only when fixing a proven issue. If the phone is not available, report PARTIAL and do not mark the physical-device acceptance gate as passed.
+
 ## Acceptance gate
 
 - [ ] No analyzer errors; tests passing.
