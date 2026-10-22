@@ -12,13 +12,20 @@
 6. Render a readable breakdown card with criterion scores, weights, fetched/cached/sample state, and explanation of each criterion. Sample score must say **Sample heuristic result**.
 7. Unit-test scoring: deterministic outputs, range 0..100, missing-query => no total score, fixed weights, zero/large counts, repeated identical inputs => identical results.
 
+## Fast acceptance checks
+
+- Use mocked Overpass evidence and pure Dart unit tests for scoring weights, normalization, zero/sparse records, failures, caching/source metadata, and determinism. Add targeted widget tests for labels.
+- Format only changed Dart files; run `flutter analyze --no-pub` and focused `flutter test --no-pub` on relevant test files. Run `flutter pub get` only if packages actually change.
+- No routine emulator launch, APK build/install, Mapbox token prompt, screenshots, or repeated live Overpass calls in Phase 04.
+- Phase 04 can pass its code/test gate with actual Android UI integration **pending Phase 06**. If an unmockable native regression arises, run only a focused smoke check.
+
 ## Acceptance gate
 
 - [ ] Same evidence yields same score; all input assumptions visible.
 - [ ] 40/30/30 weights and normalizations are applied and unit tested.
 - [ ] No fabricated demand, foot-traffic, profitability, or road travel-time figures.
 - [ ] Missing evidence does not turn into a supposedly confident score.
-- [ ] Source and limitations clearly shown in analysis view; analyze/test passes.
+- [ ] Source and limitations checked by widget tests; analyzer/targeted tests pass; phone demo deferred to Phase 06.
 
 ## Stop
 
