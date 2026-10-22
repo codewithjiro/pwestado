@@ -12,13 +12,20 @@
 6. Handle same site twice, a site without OSM coverage, stale cached results, mixed live/sample modes, and missing network gracefully.
 7. Add test cases ensuring compare uses same settings, rejects invalid comparisons, keeps site A/B independent, and never ranks incomparable or failed scores.
 
+## Fast acceptance checks
+
+- Test independent Site A and B queries, category/radius parity, source modes, stale data handling, failure states and missing scores with fake repositories.
+- Verify comparison widgets with targeted widget tests; format changed Dart files; run `flutter analyze --no-pub` and focused `flutter test --no-pub`. Resolve dependencies only if changed.
+- Do not repeatedly build/install APKs, launch an emulator, request Mapbox token, or run end-to-end live-map demonstrations for this phase. Defer physical map gestures and Android integration to Phase 06 unless a specific native defect demands a focused smoke test.
+- A code/test PASS must explicitly state **physical-device comparison pending Phase 06**.
+
 ## Acceptance gate
 
 - [ ] Select A, select different B, independently analyze both.
 - [ ] Side-by-side data and map/site markers match their sites.
 - [ ] Settings parity enforced; sample/live sources distinguishable.
 - [ ] Appropriate uncertainties and missing scores shown; tests pass.
-- [ ] Demonstrable on user's Android device.
+- [ ] Code/test gate verified; physical-device walkthrough deferred to Phase 06.
 
 ## Stop
 
