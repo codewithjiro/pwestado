@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,17 +9,26 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' hide Size;
 import '../../../../app/theme.dart';
 import '../../../../core/config/mapbox_config.dart';
 import '../../../../core/models/selected_site.dart';
+import '../../../../core/utils/geo.dart';
+import '../../../../core/utils/redact.dart';
+import '../../../discovery/domain/competitors.dart';
+import '../../../discovery/presentation/competitor_results.dart';
+import '../../../discovery/presentation/source_labels.dart';
+import '../../../discovery/state/competitor_controller.dart';
 import '../../data/location_service.dart';
 import '../../state/explore_controller.dart';
+import 'competitor_pin_image.dart';
 import 'map_controls.dart';
 import 'map_unavailable.dart';
 import 'site_pin_image.dart';
 
 /// Live Mapbox Standard map with long-press site picking, the selected-site
-/// pin, the device location puck, and floating camera controls.
+/// pin, competitor markers with the searched radius, the device location
+/// puck, and floating camera controls.
 ///
-/// Only listens to the selected site and GPS status, so changing category or
-/// radius never rebuilds or reinitializes the native map view.
+/// Only listens to the selected site, GPS status, and competitor results,
+/// so changing category or radius never rebuilds or reinitializes the
+/// native map view.
 class ExploreMap extends ConsumerStatefulWidget {
   const ExploreMap({
     super.key,
@@ -64,11 +74,25 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
     onMapLoadErrorListener: _onMapLoadError,
   );
 
+  static const _selectedCompetitorSize = 1.4;
+
   MapboxMap? _map;
+  PolygonAnnotationManager? _radiusManager;
+  PointAnnotationManager? _competitorManager;
   PointAnnotationManager? _pinManager;
+  Cancelable? _competitorTaps;
   PointAnnotation? _sitePin;
   Uint8List? _pinImage;
-  Future<void> _pinSync = Future.value();
+  Uint8List? _competitorImage;
+
+  /// What is currently drawn, so each sync only touches what changed.
+  CompetitorResult? _drawnResult;
+  CompetitorQuery? _drawnRadius;
+  String? _drawnSelection;
+  final _competitorPins = <String, PointAnnotation>{};
+  final _annotationToBusiness = <String, String>{};
+
+  Future<void> _mapSync = Future.value();
   bool _styleLoaded = false;
   bool _styleFailed = false;
 
@@ -79,6 +103,12 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
   void didUpdateWidget(ExploreMap oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.topInset != widget.topInset) _placeOrnaments();
+  }
+
+  @override
+  void dispose() {
+    _competitorTaps?.cancel();
+    super.dispose();
   }
 
   Future<void> _onMapCreated(MapboxMap map) async {
@@ -123,13 +153,21 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
   void _onStyleLoaded(StyleLoadedEventData _) {
     _styleLoaded = true;
     if (_styleFailed && mounted) setState(() => _styleFailed = false);
-    _queuePinSync();
+    _queueMapSync();
   }
 
   void _onMapLoadError(MapLoadingErrorEventData event) {
     // The raw SDK message can contain request URLs with the access token, so
-    // it is never shown or logged. Only style failures blank the whole map;
-    // individual tile errors are left to the SDK's own retry.
+    // it is never shown, and only logged (debug builds) after redaction.
+    if (kDebugMode) {
+      debugPrint(
+        'Mapbox ${event.type.name} load error'
+        '${event.sourceId == null ? '' : ' (source ${event.sourceId})'}: '
+        '${redactSecrets(event.message)}',
+      );
+    }
+    // Only style failures blank the whole map; individual tile errors are
+    // left to the SDK's own retry.
     if (event.type == MapLoadErrorType.STYLE && mounted) {
       setState(() => _styleFailed = true);
     }
@@ -150,22 +188,69 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
         );
   }
 
-  /// Serializes pin updates so rapid long presses cannot interleave native
-  /// calls. Each run reads the latest site, so the final state always wins.
-  void _queuePinSync() {
-    _pinSync = _pinSync.then((_) => _syncPin()).catchError((Object e) {
-      debugPrint('Site pin update failed: $e');
-    });
+  void _onCompetitorTap(PointAnnotation annotation) {
+    final key = _annotationToBusiness[annotation.id];
+    if (key == null || !mounted) return;
+    final businesses = ref.read(competitorControllerProvider).businesses;
+    for (final business in businesses) {
+      if (business.key == key) {
+        openCompetitorDetails(context, ref, business);
+        return;
+      }
+    }
   }
 
-  Future<void> _syncPin() async {
+  /// Serializes annotation updates so rapid changes cannot interleave
+  /// native calls. Each run reads the latest state, so the final state
+  /// always wins.
+  void _queueMapSync() {
+    _mapSync = _mapSync
+        .then((_) async {
+          await _syncSitePin();
+          await _syncCompetitors();
+        })
+        .catchError((Object e) {
+          debugPrint('Map annotation update failed: ${describeError(e)}');
+        });
+  }
+
+  /// Creates the annotation layers once. Creation order is drawing order:
+  /// the radius ring at the bottom, competitors above it, the site pin on
+  /// top so it is never hidden by a nearby competitor.
+  Future<bool> _ensureManagers() async {
     final map = _map;
-    if (map == null || !_styleLoaded || !mounted) return;
+    if (map == null || !_styleLoaded || !mounted) return false;
+    if (_pinManager != null) return true;
+
+    final annotations = map.annotations;
+    _radiusManager = await annotations.createPolygonAnnotationManager(
+      id: 'pwestado-search-radius',
+    );
+    final competitors = await annotations.createPointAnnotationManager(
+      id: 'pwestado-competitors',
+    );
+    // Every record must stay visible: never let Mapbox's collision
+    // detection hide a marker because it overlaps another one.
+    await competitors.setIconAllowOverlap(true);
+    await competitors.setIconIgnorePlacement(true);
+    _competitorTaps = competitors.tapEvents(onTap: _onCompetitorTap);
+    _competitorManager = competitors;
+
+    final site = await annotations.createPointAnnotationManager(
+      id: 'pwestado-selected-site',
+    );
+    await site.setIconAllowOverlap(true);
+    _pinManager = site;
+    return true;
+  }
+
+  Future<void> _syncSitePin() async {
+    if (!await _ensureManagers()) return;
     final site = ref.read(exploreControllerProvider).site;
 
     if (site == null) {
       if (_sitePin != null) {
-        await _pinManager?.deleteAll();
+        await _pinManager!.deleteAll();
         _sitePin = null;
       }
       return;
@@ -179,9 +264,6 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
       return;
     }
 
-    _pinManager ??= await map.annotations.createPointAnnotationManager(
-      id: 'pwestado-selected-site',
-    );
     _pinImage ??= await renderSitePinPng();
     _sitePin = await _pinManager!.create(
       PointAnnotationOptions(
@@ -192,6 +274,92 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
         iconAnchor: IconAnchor.BOTTOM,
       ),
     );
+  }
+
+  /// Mirrors the competitor search state: markers for exactly the records
+  /// in the current result (none otherwise), the searched radius, and the
+  /// highlighted record.
+  Future<void> _syncCompetitors() async {
+    if (!await _ensureManagers()) return;
+    final state = ref.read(competitorControllerProvider);
+    final result = state.result;
+
+    if (!identical(result, _drawnResult)) {
+      await _competitorManager!.deleteAll();
+      _competitorPins.clear();
+      _annotationToBusiness.clear();
+      _drawnSelection = null;
+      _drawnResult = null;
+
+      final businesses = result?.businesses ?? const <NearbyBusiness>[];
+      if (businesses.isNotEmpty) {
+        _competitorImage ??= await renderCompetitorPinPng();
+        final created = await _competitorManager!.createMulti([
+          for (final business in businesses)
+            PointAnnotationOptions(
+              geometry: Point(
+                coordinates: Position(business.longitude, business.latitude),
+              ),
+              image: _competitorImage,
+              iconAnchor: IconAnchor.CENTER,
+            ),
+        ]);
+        for (final (index, annotation) in created.indexed) {
+          if (annotation == null) continue;
+          final key = businesses[index].key;
+          _competitorPins[key] = annotation;
+          _annotationToBusiness[annotation.id] = key;
+        }
+      }
+      _drawnResult = result;
+    }
+
+    final selected = state.selectedKey;
+    if (selected != _drawnSelection) {
+      for (final key in {_drawnSelection, selected}) {
+        final annotation = _competitorPins[key];
+        if (annotation == null) continue;
+        annotation
+          ..iconSize = key == selected ? _selectedCompetitorSize : 1
+          ..symbolSortKey = key == selected ? 1 : 0;
+        await _competitorManager!.update(annotation);
+      }
+      _drawnSelection = selected;
+    }
+
+    final radiusQuery = result?.query;
+    if (radiusQuery != _drawnRadius) {
+      await _radiusManager!.deleteAll();
+      _drawnRadius = null;
+      if (radiusQuery != null) {
+        await _radiusManager!.create(
+          PolygonAnnotationOptions(
+            geometry: _circle(radiusQuery),
+            fillColor: BrandColors.emerald500.toARGB32(),
+            fillOpacity: 0.08,
+            fillOutlineColor: BrandColors.emerald700.toARGB32(),
+          ),
+        );
+      }
+      _drawnRadius = radiusQuery;
+    }
+  }
+
+  /// The searched area as a 72-sided polygon.
+  static Polygon _circle(CompetitorQuery query) {
+    final ring = [
+      for (var i = 0; i <= 72; i++)
+        () {
+          final (lat, lon) = destinationPoint(
+            query.latitude,
+            query.longitude,
+            i * 5.0,
+            query.radius.meters.toDouble(),
+          );
+          return Position(lon, lat);
+        }(),
+    ];
+    return Polygon(coordinates: [ring]);
   }
 
   Future<void> _showLocationPuck() async {
@@ -207,10 +375,21 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
     );
   }
 
+  /// Map height reserved for the bottom sheet when framing the camera. Capped
+  /// at the sheet's resting height: when the sheet is pulled up (e.g. to
+  /// read results) the camera still frames the area that will be visible
+  /// once it is lowered, instead of squeezing everything into a sliver.
+  double get _cameraBottomInset {
+    final height = context.size?.height ?? 0;
+    return math.min(widget.bottomInset.value, height * _maxCameraBottomShare);
+  }
+
+  static const _maxCameraBottomShare = 0.55;
+
   MbxEdgeInsets get _cameraPadding => MbxEdgeInsets(
     top: widget.topInset,
     left: 0,
-    bottom: widget.bottomInset.value,
+    bottom: _cameraBottomInset,
     right: 0,
   );
 
@@ -232,10 +411,37 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
   void _flyHome() =>
       _flyTo(MapDefaults.latitude, MapDefaults.longitude, MapDefaults.zoom);
 
+  /// Zooms so the whole searched circle fits in the visible part of the map.
+  void _fitSearchArea(CompetitorQuery query) {
+    final size = context.size;
+    if (size == null) return;
+    final visibleHeight = size.height - widget.topInset - _cameraBottomInset;
+    final pixels = math.max(120.0, math.min(size.width, visibleHeight)) * 0.85;
+    // Mapbox uses 512 px tiles: 78271.517 m per px at zoom 0 on the equator.
+    final metersPerPixelAtZoom0 =
+        78271.517 * math.cos(query.latitude * math.pi / 180);
+    final zoom =
+        math.log(metersPerPixelAtZoom0 * pixels / (2 * query.radius.meters)) /
+        math.ln2;
+    _flyTo(query.latitude, query.longitude, zoom.clamp(11.0, 17.0));
+  }
+
+  Future<void> _easeToBusiness(NearbyBusiness business) async {
+    await _map?.easeTo(
+      CameraOptions(
+        center: Point(
+          coordinates: Position(business.longitude, business.latitude),
+        ),
+        padding: _cameraPadding,
+      ),
+      MapAnimationOptions(duration: 600),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen(exploreControllerProvider.select((s) => s.site), (prev, next) {
-      _queuePinSync();
+      _queueMapSync();
       // Bring GPS fixes into view; a long-pressed site is already on screen.
       if (next != null && next.source.isGps && next != prev) _flyToSite(next);
     });
@@ -245,8 +451,24 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
     ) {
       if (next == LocationStatus.located) _showLocationPuck();
     });
+    ref.listen(competitorControllerProvider, (prev, next) {
+      _queueMapSync();
+      final result = next.result;
+      if (result != null && !identical(result, prev?.result)) {
+        _fitSearchArea(result.query);
+      }
+      final selected = next.selected;
+      if (selected != null && next.selectedKey != prev?.selectedKey) {
+        _easeToBusiness(selected);
+      }
+    });
 
     final hasToken = _tokenStatus == MapboxTokenStatus.ok;
+    final showingSample = ref.watch(
+      competitorControllerProvider.select(
+        (s) => s.status == CompetitorStatus.sample,
+      ),
+    );
 
     return Stack(
       children: [
@@ -269,6 +491,13 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
             right: AppSpacing.lg,
             child: _MapErrorBanner(onRetry: _retryStyle),
           ),
+        if (hasToken && showingSample && !_styleFailed)
+          Positioned(
+            top: widget.topInset + AppSpacing.xxl + AppSpacing.sm,
+            left: AppSpacing.lg,
+            right: AppSpacing.lg,
+            child: const Center(child: _SampleMapChip()),
+          ),
         MapControls(
           bottomInset: widget.bottomInset,
           mapAvailable: hasToken,
@@ -276,6 +505,44 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
           onShowSite: _flyToSite,
         ),
       ],
+    );
+  }
+}
+
+/// Keeps "sample" visible on the map itself, not only in the panel.
+class _SampleMapChip extends StatelessWidget {
+  const _SampleMapChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: SampleBanner.background,
+      elevation: 3,
+      borderRadius: BorderRadius.circular(999),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs + 2,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.science_outlined,
+              size: 16,
+              color: SampleBanner.foreground,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              '${SampleBanner.title} · NOT REAL BUSINESSES',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: SampleBanner.foreground,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -38,6 +38,7 @@ dependencies:
   go_router: ^18.1.1
   mapbox_maps_flutter: 3.33.0
   geolocator: 14.0.2
+  dio: ^5.11.1
 
 dev_dependencies:
   flutter_test:

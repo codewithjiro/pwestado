@@ -5,6 +5,8 @@ import '../../../../app/theme.dart';
 import '../../../../core/models/business_category.dart';
 import '../../../../core/models/search_radius.dart';
 import '../../../../core/models/selected_site.dart';
+import '../../../discovery/presentation/competitor_results.dart';
+import '../../../discovery/state/competitor_controller.dart';
 import '../../state/explore_controller.dart';
 
 /// Search controls: business type, radius, chosen site, and the search action.
@@ -22,6 +24,9 @@ class SearchPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(exploreControllerProvider);
     final controller = ref.read(exploreControllerProvider.notifier);
+    final searching = ref.watch(
+      competitorControllerProvider.select((s) => s.isLoading),
+    );
     final theme = Theme.of(context);
 
     return ListView(
@@ -82,20 +87,27 @@ class SearchPanel extends ConsumerWidget {
         const _SectionLabel('Site'),
         _SiteSummary(site: state.site, onClear: controller.clearSite),
         const SizedBox(height: AppSpacing.xl),
-        // The Overpass search is wired up in Phase 03 (enabled when
-        // state.canSearch). Until then the action stays disabled.
         FilledButton.icon(
-          onPressed: null,
-          icon: const Icon(Icons.travel_explore),
-          label: const Text('Find competitors'),
+          onPressed: state.canSearch && !searching
+              ? () => ref.read(competitorControllerProvider.notifier).search()
+              : null,
+          icon: searching
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                )
+              : const Icon(Icons.travel_explore),
+          label: Text(searching ? 'Searching…' : 'Find competitors'),
         ),
         const SizedBox(height: AppSpacing.sm),
         _Caption(
           state.canSearch
-              ? 'Competitor search is not connected yet (next build phase).'
+              ? 'Searches OpenStreetMap for ${state.category.label} records '
+                    'within ${state.radius.label}, only when you tap.'
               : 'Choose a site on the map to enable the search.',
           centered: true,
         ),
+        const CompetitorResults(),
       ],
     );
   }

@@ -48,8 +48,10 @@ class _AboutSheet extends StatelessWidget {
               icon: Icons.storefront_outlined,
               title: 'Business listings',
               body:
-                  'Fetched from OpenStreetMap only when you tap search. '
-                  'Mapped records can be incomplete or out of date.',
+                  'Fetched from OpenStreetMap via the Overpass API only when '
+                  'you tap search. Mapped records can be incomplete or out of '
+                  'date, and do not show whether a business is open or busy. '
+                  'Data © OpenStreetMap contributors (ODbL).',
             ),
             const _Point(
               icon: Icons.calculate_outlined,

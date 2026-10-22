@@ -1,0 +1,55 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API (test fixture shaped like a real out:json response)",
+  "osm3s": {
+    "timestamp_osm_base": "2026-10-22T03:00:00Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+    {
+      "type": "way",
+      "id": 5001,
+      "center": { "lat": 15.0960, "lon": 120.7690 },
+      "nodes": [1, 2, 3, 1],
+      "tags": { "amenity": "cafe", "name": "Kape Way", "opening_hours": "Mo-Su 07:00-21:00" }
+    },
+    {
+      "type": "node",
+      "id": 1001,
+      "lat": 15.0941,
+      "lon": 120.7682,
+      "tags": {
+        "amenity": "cafe",
+        "name": "  Corner Brew  ",
+        "addr:street": "Rizal Street",
+        "addr:city": "Santa Ana",
+        "cuisine": "coffee_shop;cake",
+        "contact:phone": "+63 900 000 0000"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1002,
+      "lat": 15.1000,
+      "lon": 120.7681,
+      "tags": { "amenity": "cafe" }
+    },
+    {
+      "type": "relation",
+      "id": 9001,
+      "center": { "lat": 15.0900, "lon": 120.7681 },
+      "tags": { "amenity": "cafe", "name:en": "Relation Cafe" }
+    },
+    {
+      "type": "node",
+      "id": 1001,
+      "lat": 15.0941,
+      "lon": 120.7682,
+      "tags": { "amenity": "cafe", "name": "Corner Brew duplicate" }
+    },
+    { "type": "way", "id": 5002, "tags": { "amenity": "cafe", "name": "No center way" } },
+    { "type": "node", "id": 1003, "lat": 95.0, "lon": 120.0, "tags": { "amenity": "cafe" } },
+    { "type": "node", "id": "bad-id", "lat": 15.09, "lon": 120.76 },
+    { "type": "area", "id": 3600001, "center": { "lat": 15.09, "lon": 120.76 } }
+  ]
+}

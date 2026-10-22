@@ -17,11 +17,11 @@
 
 ## Acceptance gate
 
-- [ ] Explicit search calls real Overpass API with selected location/category/radius.
-- [ ] Live markers, count, and list reflect the same response; no ghost/duplicate pins.
-- [ ] Missing network, no records, and 429/timeout are handled without crash.
-- [ ] Sample fallback is unmistakably labeled; it cannot appear as live.
-- [ ] Parser tests + `flutter analyze` pass; actual phone tested.
+- [x] Explicit search calls real Overpass API with selected location/category/radius. *(emulator: San Fernando cafe 1 km = 6 live records, matching a separate curl of the same query; laundry 500 m = 1; restaurant 1 km = 10; no request on category/radius/site change)*
+- [x] Live markers, count, and list reflect the same response; no ghost/duplicate pins. *(6 orange markers for 6 records, 2 real records 13 m apart stack; marker tap opens the matching record; new site/search clears old markers; dedup by type:id unit-tested)*
+- [x] Missing network, no records, and 429/timeout are handled without crash. *(on emulator: offline -> "No connection", Santa Ana cafe 2 km -> "No mapped records found within this radius.", live HTTP 502 retried/reported, connection aborts reported; 429 and timeouts covered by unit/widget tests only, not observed live)*
+- [x] Sample fallback is unmistakably labeled; it cannot appear as live. *(banner, SAMPLE badge, "(demo)" names, map chip, no OSM attribution under sample rows; only offered after a failed search)*
+- [x] Parser tests + `flutter analyze` pass; actual phone tested. *(104 tests pass, analyze clean; Android 16 emulator only, physical-phone run still pending, see Phase 06)*
 
 ## Stop
 

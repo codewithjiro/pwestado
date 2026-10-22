@@ -63,7 +63,13 @@ class MapControls extends ConsumerWidget {
                   child: AnimatedOpacity(
                     opacity: hidden ? 0 : 1,
                     duration: const Duration(milliseconds: 150),
-                    child: child,
+                    // While hidden the space above a tall sheet can be
+                    // shorter than the buttons; clip instead of overflowing.
+                    child: SingleChildScrollView(
+                      reverse: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: child,
+                    ),
                   ),
                 ),
               ),
