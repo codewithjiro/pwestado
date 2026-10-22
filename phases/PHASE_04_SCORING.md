@@ -21,11 +21,11 @@
 
 ## Acceptance gate
 
-- [ ] Same evidence yields same score; all input assumptions visible.
-- [ ] 40/30/30 weights and normalizations are applied and unit tested.
-- [ ] No fabricated demand, foot-traffic, profitability, or road travel-time figures.
-- [ ] Missing evidence does not turn into a supposedly confident score.
-- [ ] Source and limitations checked by widget tests; analyzer/targeted tests pass; phone demo deferred to Phase 06.
+- [x] Same evidence yields same score; all input assumptions visible.
+- [x] 40/30/30 weights and normalizations are applied and unit tested.
+- [x] No fabricated demand, foot-traffic, profitability, or road travel-time figures.
+- [x] Missing evidence does not turn into a supposedly confident score.
+- [x] Source and limitations checked by widget tests; analyzer/targeted tests pass; phone demo deferred to Phase 06.
 
 ## Stop
 

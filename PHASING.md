@@ -175,7 +175,7 @@ Do not generate dozens of empty files or extra modules just to match a diagram. 
 | **01** | [Flutter shell and design](phases/PHASE_01_APP_SHELL.md) | Runs with polished home screen; no runtime errors | [x] |
 | **02** | [Mapbox + GPS + site selection](phases/PHASE_02_MAPBOX_LOCATION.md) | Real map moves, long press picks a site, GPS denial handled | [x] |
 | **03** | [Overpass + competitor markers](phases/PHASE_03_COMPETITORS.md) | Real request / honest empty or error, markers/counts | [x] |
-| **04** | [Evidence + scoring](phases/PHASE_04_SCORING.md) | Pure Dart scoring, targeted tests and analyzer (no APK) | [ ] |
+| **04** | [Evidence + scoring](phases/PHASE_04_SCORING.md) | Pure Dart scoring, targeted tests and analyzer (no APK) | [x] |
 | **05** | [Two-site comparison](phases/PHASE_05_COMPARISON.md) | Independent A/B + matched settings, focused tests (no APK) | [ ] |
 | **06** | [Reliability + APK + demo](phases/PHASE_06_RELEASE.md) | Full regression, release APK and physical-phone demo | [ ] |
 | **07** | [Optional SQLite](phases/PHASE_07_OPTIONAL_SQLITE.md) | Optional after pitch; explicit approval only | [ ] |

@@ -43,6 +43,50 @@ double distanceMeters(double lat1, double lon1, double lat2, double lon2) {
   return (_deg(lat2), (_deg(lon2) + 540) % 360 - 180);
 }
 
+/// Shortest distance in meters from a point to a polyline of `(lat, lon)`
+/// vertices. Uses a local flat projection around the point, which is
+/// accurate to well under a meter at the few-hundred-meter scale it is used
+/// for. Returns null for an empty polyline.
+double? distanceToPolylineMeters(
+  double latitude,
+  double longitude,
+  List<(double, double)> polyline,
+) {
+  if (polyline.isEmpty) return null;
+  const metersPerDegree = earthRadiusMeters * math.pi / 180;
+  final cosLat = math.cos(_rad(latitude));
+  (double, double) project((double, double) p) => (
+    (p.$2 - longitude) * cosLat * metersPerDegree,
+    (p.$1 - latitude) * metersPerDegree,
+  );
+
+  var best = double.infinity;
+  var previous = project(polyline.first);
+  if (polyline.length == 1) {
+    return math.sqrt(previous.$1 * previous.$1 + previous.$2 * previous.$2);
+  }
+  for (final vertex in polyline.skip(1)) {
+    final current = project(vertex);
+    best = math.min(best, _distanceToSegment(previous, current));
+    previous = current;
+  }
+  return best;
+}
+
+/// Distance from the origin to segment [a]-[b] in projected meters.
+double _distanceToSegment((double, double) a, (double, double) b) {
+  final (ax, ay) = a;
+  final dx = b.$1 - ax;
+  final dy = b.$2 - ay;
+  final lengthSquared = dx * dx + dy * dy;
+  final t = lengthSquared == 0
+      ? 0.0
+      : ((-ax * dx - ay * dy) / lengthSquared).clamp(0.0, 1.0);
+  final x = ax + t * dx;
+  final y = ay + t * dy;
+  return math.sqrt(x * x + y * y);
+}
+
 bool isValidCoordinate(double? latitude, double? longitude) =>
     latitude != null &&
     longitude != null &&

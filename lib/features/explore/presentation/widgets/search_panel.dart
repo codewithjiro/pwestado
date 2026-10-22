@@ -5,6 +5,7 @@ import '../../../../app/theme.dart';
 import '../../../../core/models/business_category.dart';
 import '../../../../core/models/search_radius.dart';
 import '../../../../core/models/selected_site.dart';
+import '../../../analysis/presentation/site_analysis_section.dart';
 import '../../../discovery/presentation/competitor_results.dart';
 import '../../../discovery/state/competitor_controller.dart';
 import '../../state/explore_controller.dart';
@@ -107,6 +108,7 @@ class SearchPanel extends ConsumerWidget {
               : 'Choose a site on the map to enable the search.',
           centered: true,
         ),
+        const SiteAnalysisSection(),
         const CompetitorResults(),
       ],
     );

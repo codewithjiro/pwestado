@@ -130,6 +130,40 @@ class _Loading extends StatelessWidget {
   }
 }
 
+/// Title, message, and icon for a failed Overpass request.
+(String, String, IconData) describeOverpassFailure(
+  CompetitorFailure failure,
+  int? statusCode,
+) => switch (failure) {
+  CompetitorFailure.timeout => (
+    'Search timed out',
+    'The Overpass server took too long to answer. Try again in a moment.',
+    Icons.hourglass_empty,
+  ),
+  CompetitorFailure.rateLimited => (
+    'Too many requests (HTTP 429)',
+    'The public Overpass server is limiting requests. Wait a minute '
+        'before retrying.',
+    Icons.front_hand_outlined,
+  ),
+  CompetitorFailure.serverBusy => (
+    'Overpass server busy${statusCode == null ? '' : ' (HTTP $statusCode)'}',
+    'The server could not run the search right now. Try again shortly.',
+    Icons.dns_outlined,
+  ),
+  CompetitorFailure.network => (
+    'No connection',
+    'Could not reach the Overpass server. Check the internet connection '
+        'and try again.',
+    Icons.wifi_off,
+  ),
+  CompetitorFailure.badResponse => (
+    'Unexpected response${statusCode == null ? '' : ' (HTTP $statusCode)'}',
+    'The server answered with something PWESTADO could not read.',
+    Icons.error_outline,
+  ),
+};
+
 class _ErrorView extends StatelessWidget {
   const _ErrorView({
     required this.failure,
@@ -143,43 +177,10 @@ class _ErrorView extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback onSample;
 
-  static (String, String, IconData) describe(
-    CompetitorFailure failure,
-    int? statusCode,
-  ) => switch (failure) {
-    CompetitorFailure.timeout => (
-      'Search timed out',
-      'The Overpass server took too long to answer. Try again in a moment.',
-      Icons.hourglass_empty,
-    ),
-    CompetitorFailure.rateLimited => (
-      'Too many requests (HTTP 429)',
-      'The public Overpass server is limiting requests. Wait a minute '
-          'before retrying.',
-      Icons.front_hand_outlined,
-    ),
-    CompetitorFailure.serverBusy => (
-      'Overpass server busy${statusCode == null ? '' : ' (HTTP $statusCode)'}',
-      'The server could not run the search right now. Try again shortly.',
-      Icons.dns_outlined,
-    ),
-    CompetitorFailure.network => (
-      'No connection',
-      'Could not reach the Overpass server. Check the internet connection '
-          'and try again.',
-      Icons.wifi_off,
-    ),
-    CompetitorFailure.badResponse => (
-      'Unexpected response${statusCode == null ? '' : ' (HTTP $statusCode)'}',
-      'The server answered with something PWESTADO could not read.',
-      Icons.error_outline,
-    ),
-  };
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final (title, message, icon) = describe(failure, statusCode);
+    final (title, message, icon) = describeOverpassFailure(failure, statusCode);
     return _Card(
       color: const Color(0xFFFFF4F2),
       borderColor: const Color(0xFFF1C9C2),
