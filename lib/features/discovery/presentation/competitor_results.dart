@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
+import '../../../shared/widgets/elapsed_wait.dart';
 import '../../../core/utils/geo.dart';
 import '../domain/competitors.dart';
 import '../state/competitor_controller.dart';
@@ -113,6 +114,8 @@ class _Loading extends StatelessWidget {
             semanticsLabel: 'Searching OpenStreetMap',
           ),
           const SizedBox(height: AppSpacing.sm),
+          const ElapsedWait(),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             'Querying the public Overpass API. Shared servers can take up to '
             'a minute to answer.',

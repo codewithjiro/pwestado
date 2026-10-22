@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/utils/age.dart';
 import '../domain/competitors.dart';
 
 /// Small orange disc matching the map's competitor markers.
@@ -105,10 +106,8 @@ class SourceLine extends StatelessWidget {
     return Text(text, style: style);
   }
 
-  static String _age(DateTime fetchedAt) {
-    final minutes = DateTime.now().difference(fetchedAt).inMinutes;
-    return minutes < 1 ? 'under a minute ago' : '$minutes min ago';
-  }
+  static String _age(DateTime fetchedAt) =>
+      '${formatAge(DateTime.now().difference(fetchedAt))} ago';
 }
 
 /// "at 10:42 AM", or "on 10/21 at 10:42 AM" when not today.

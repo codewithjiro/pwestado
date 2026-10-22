@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
+import '../../../shared/widgets/elapsed_wait.dart';
 import '../../../core/models/selected_site.dart';
 import '../../../core/utils/geo.dart';
 import '../../analysis/domain/site_analysis.dart';
@@ -168,6 +169,8 @@ class _SlotTile extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           LinearProgressIndicator(semanticsLabel: 'Analyzing ${slot.title}'),
+          const SizedBox(height: AppSpacing.xs),
+          const ElapsedWait(),
         ];
       case SlotStatus.failed:
         final (title, message, _) = describeOverpassFailure(

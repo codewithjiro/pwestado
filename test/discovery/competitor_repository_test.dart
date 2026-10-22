@@ -138,9 +138,15 @@ void main() {
       expect(adapter.requests, hasLength(2));
     });
 
-    test('expires after the TTL', () async {
+    test('is reused within the TTL and expires after it', () async {
+      final start = now;
       await repo.fetch(query);
-      now = now.add(const Duration(minutes: 16));
+      now = start.add(OverpassConfig.cacheTtl - const Duration(minutes: 1));
+      final cached = await repo.fetch(query);
+      expect(adapter.requests, hasLength(1));
+      expect(cached.source, DataSource.cached);
+
+      now = start.add(OverpassConfig.cacheTtl + const Duration(minutes: 1));
       final again = await repo.fetch(query);
       expect(adapter.requests, hasLength(2));
       expect(again.source, DataSource.live);

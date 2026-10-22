@@ -26,8 +26,8 @@ This is the **single mandatory complete Android regression gate** for Phases 04-
 
 ## Acceptance gate
 
-- [ ] No analyzer errors; tests passing.
-- [ ] Release APK exists at expected build path, with token configured correctly.
+- [x] No analyzer errors; tests passing.
+- [ ] Release APK exists at expected build path, with token configured correctly. *(APK built and verified 2026-10-22: `build\app\outputs\flutter-apk\app-release.apk`, 124.4 MB, token injected via `--dart-define`. Map rendering with that token is not yet confirmed on a device.)*
 - [ ] APK installed and launched on physical phone.
 - [ ] Real Mapbox viewport and gestures functional.
 - [ ] Site selection, category/radius, OSM request or honest failure, pins/counts, scoring, and two-site comparison all exercised.

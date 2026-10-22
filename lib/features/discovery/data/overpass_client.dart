@@ -25,6 +25,12 @@ abstract final class OverpassConfig {
 
   /// Public servers often queue requests; 40 s responses are common.
   static const receiveTimeout = Duration(seconds: 60);
+
+  /// How long a successful response is reused for the same site, category,
+  /// and radius. Mapped OSM businesses change slowly, and cached copies are
+  /// always labeled with their retrieval time, so a result fetched before a
+  /// presentation stays usable without re-querying the shared server.
+  static const cacheTtl = Duration(hours: 3);
 }
 
 /// Sends Overpass QL with a small, polite retry policy. Shared by every

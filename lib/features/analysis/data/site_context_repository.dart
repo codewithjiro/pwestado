@@ -25,7 +25,7 @@ class OverpassSiteContextRepository implements SiteContextRepository {
   OverpassSiteContextRepository({
     OverpassClient? client,
     DateTime Function()? clock,
-    Duration cacheTtl = const Duration(minutes: 15),
+    Duration cacheTtl = OverpassConfig.cacheTtl,
     this.refreshCooldown = const Duration(seconds: 30),
     int maxCacheEntries = 24,
   }) : _client = client ?? OverpassClient(),

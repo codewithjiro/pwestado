@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
+import '../../../shared/widgets/elapsed_wait.dart';
 import '../../discovery/domain/competitors.dart';
 import '../../discovery/presentation/competitor_results.dart';
 import '../../discovery/presentation/source_labels.dart';
@@ -113,6 +114,15 @@ class _Loading extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           const LinearProgressIndicator(
             semanticsLabel: 'Fetching scoring evidence',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const ElapsedWait(),
+          Text(
+            'One more Overpass request. Shared servers can take up to a '
+            'minute to answer.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: BrandColors.inkMuted),
           ),
           Align(
             alignment: Alignment.centerRight,

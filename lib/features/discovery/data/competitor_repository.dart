@@ -29,7 +29,7 @@ class OverpassCompetitorRepository implements CompetitorRepository {
     String endpoint = OverpassConfig.endpoint,
     DateTime Function()? clock,
     Duration retryDelay = const Duration(seconds: 3),
-    Duration cacheTtl = const Duration(minutes: 15),
+    Duration cacheTtl = OverpassConfig.cacheTtl,
     this.refreshCooldown = const Duration(seconds: 30),
     int maxCacheEntries = 24,
     int maxAttempts = 2,

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/models/business_category.dart';
 import '../../../core/models/search_radius.dart';
+import '../../../core/utils/age.dart';
 import '../../../core/utils/geo.dart';
 import '../../analysis/domain/site_analysis.dart';
 import '../../discovery/domain/competitors.dart';
@@ -204,7 +205,7 @@ SiteComparison compareSites({
     final age = now.difference(oldestFetch(analysis));
     if (age > ComparisonRules.staleAfter) {
       warnings.add(
-        '${slot.title} evidence was retrieved ${age.inMinutes} min ago. '
+        '${slot.title} evidence was retrieved ${formatAge(age)} ago. '
         'Refresh it for current OpenStreetMap data.',
       );
     }
