@@ -18,8 +18,17 @@ You are implementing **PWESTADO**, a **Flutter Android** location-intelligence p
 8. **Efficient APIs.** Query only on explicit search/refresh; add caching, cancellation, timeout, respectful limits, and useful HTTP error states.
 9. **Avoid scope creep.** No Gemini, Firebase, Supabase, auth, backend, web deployment, paid APIs, or profit simulator. Do not add SQLite until Phase 07, and only after core demo passes.
 10. **Modern UI, restrained implementation.** Map-first Material 3, dark emerald + mint + off-white, accessible tap targets, clear bottom-sheet controls, distinctive site/competitor pins, no gratuitous animations.
-11. **Test each phase.** Run format, analyze, appropriate automated tests, and device test when possible. Do not report commands as passed unless they were run successfully.
+11. **Test proportionately.** Phase 04/05: format changed Dart files only, run `flutter analyze --no-pub` and focused `flutter test --no-pub` unit/widget tests; no routine APK build/install, emulator, Mapbox token requests, screenshots, or repeated live network demos. Phase 06: full regression and release APK + physical phone. Additional platform verification only for concrete native regressions. Report only checks actually performed.
 12. **Protect the demo.** Never break a previously accepted phase for optional polish. No git push or paid provisioning without user request.
+
+## Fast iteration after Phase 03
+
+- **Phase 04 (scoring):** pure Dart scoring/evidence tests, mocked Overpass responses, relevant widget tests and analyzer. No routine Android build/install/emulator.
+- **Phase 05 (comparison):** independent A/B state and UI tests with fake repositories, analyzer. Defer physical map interaction testing to Phase 06.
+- **Phase 06 (final demo):** full `flutter test` and analyzer, one release APK build, install on actual POCO phone, test complete user journey. Repeat build/install only when fixing a diagnosed defect.
+- **Phase 07 (SQLite):** optional; skip before pitch unless owner explicitly requests it.
+- Use `flutter pub get` when dependencies change, otherwise `--no-pub` avoids redundant resolution. Avoid repeated builds, installs, screenshots and manual end-to-end walkthroughs.
+- Never skip targeted tests for new logic. For Phases 04/05, a code/test gate may PASS with **device integration explicitly pending Phase 06**. Don't claim unperformed device verification.
 
 ## Required response format after a phase
 
