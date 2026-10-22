@@ -14,12 +14,12 @@
 
 ## Acceptance gate
 
-- [ ] Real interactive map renders (not a static image).
-- [ ] Selected location pin changes when the user selects a different site.
-- [ ] GPS updates location when permitted; denial does not block map exploration.
-- [ ] Category and radius can change without reinitializing map unnecessarily.
-- [ ] Stable SDK used; no token in source or logs.
-- [ ] `flutter analyze` and device run pass.
+- [x] Real interactive map renders (not a static image). *(Mapbox Standard tiles, pan + double-tap zoom verified on emulator)*
+- [x] Selected location pin changes when the user selects a different site. *(two long-presses on emulator; pin tip within ~3 dp of touch)*
+- [x] GPS updates location when permitted; denial does not block map exploration. *(denied, permanently denied, location-off, and granted paths verified on emulator)*
+- [x] Category and radius can change without reinitializing map unnecessarily. *(camera and pin kept after changing both)*
+- [x] Stable SDK used; no token in source or logs. *(mapbox_maps_flutter 3.33.0; token scan of repo + logcat: 0 hits)*
+- [x] `flutter analyze` and device run pass. *(Android 16 emulator; physical-phone run still pending, see Phase 06)*
 
 ## Stop
 

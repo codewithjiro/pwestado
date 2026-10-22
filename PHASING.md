@@ -173,7 +173,7 @@ Do not generate dozens of empty files or extra modules just to match a diagram. 
 |---|---|---|---|
 | **00** | [Environment and credentials](phases/PHASE_00_ENVIRONMENT.md) | `flutter doctor`, device, SDK compatibility, token plan | [x] |
 | **01** | [Flutter shell and design](phases/PHASE_01_APP_SHELL.md) | Runs with polished home screen; no runtime errors | [x] |
-| **02** | [Mapbox + GPS + site selection](phases/PHASE_02_MAPBOX_LOCATION.md) | Real map moves, long press picks a site, GPS denial handled | [ ] |
+| **02** | [Mapbox + GPS + site selection](phases/PHASE_02_MAPBOX_LOCATION.md) | Real map moves, long press picks a site, GPS denial handled | [x] |
 | **03** | [Overpass + competitor markers](phases/PHASE_03_COMPETITORS.md) | Real request / honest empty or error, markers/counts | [ ] |
 | **04** | [Evidence + scoring](phases/PHASE_04_SCORING.md) | Deterministic breakdown, coverage warnings, unit tests | [ ] |
 | **05** | [Two-site comparison](phases/PHASE_05_COMPARISON.md) | Site A / B same category/radius, compare live vs cached vs demo | [ ] |

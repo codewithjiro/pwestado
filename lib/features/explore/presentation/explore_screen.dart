@@ -1,30 +1,48 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../../../app/theme.dart';
 import 'widgets/brand_header.dart';
-import 'widgets/map_placeholder.dart';
+import 'widgets/explore_map.dart';
 import 'widgets/search_panel.dart';
 
-/// Map-first home screen. Phones get a draggable bottom sheet over the map
-/// area; wide screens (tablets, landscape) get a fixed side panel.
-class ExploreScreen extends StatelessWidget {
+/// Map-first home screen. Phones get a draggable bottom sheet over the map;
+/// wide screens (tablets, landscape) get a fixed side panel.
+class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
 
   static const _wideBreakpoint = 720.0;
   static const _sidePanelWidth = 400.0;
+  static const _sheetInitial = 0.54;
+
+  @override
+  State<ExploreScreen> createState() => _ExploreScreenState();
+}
+
+class _ExploreScreenState extends State<ExploreScreen> {
+  /// Height of the map hidden behind the bottom sheet, in logical pixels.
+  final _sheetCover = ValueNotifier<double>(0);
+  static final _noCover = ValueNotifier<double>(0);
+
+  @override
+  void dispose() {
+    _sheetCover.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
-          if (constraints.maxWidth >= _wideBreakpoint) {
-            return const Row(
+          if (constraints.maxWidth >= ExploreScreen._wideBreakpoint) {
+            return Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(child: _MapArea(contentAlignment: Alignment.center)),
-                SizedBox(
-                  width: _sidePanelWidth,
+                Expanded(child: _MapArea(bottomInset: _noCover)),
+                const SizedBox(
+                  width: ExploreScreen._sidePanelWidth,
                   child: Material(
                     color: BrandColors.surfaceRaised,
                     elevation: 2,
@@ -34,21 +52,30 @@ class ExploreScreen extends StatelessWidget {
               ],
             );
           }
+
+          final height = constraints.maxHeight;
+          if (_sheetCover.value == 0) {
+            _sheetCover.value = height * ExploreScreen._sheetInitial;
+          }
           return Stack(
             children: [
-              const Positioned.fill(
-                child: _MapArea(contentAlignment: Alignment(0, -0.45)),
-              ),
-              DraggableScrollableSheet(
-                initialChildSize: 0.54,
-                minChildSize: 0.2,
-                maxChildSize: 0.92,
-                snap: true,
-                snapSizes: const [0.54],
-                builder: (context, scrollController) => _SheetSurface(
-                  child: SearchPanel(
-                    scrollController: scrollController,
-                    showDragHandle: true,
+              Positioned.fill(child: _MapArea(bottomInset: _sheetCover)),
+              NotificationListener<DraggableScrollableNotification>(
+                onNotification: (n) {
+                  _sheetCover.value = n.extent * height;
+                  return false;
+                },
+                child: DraggableScrollableSheet(
+                  initialChildSize: ExploreScreen._sheetInitial,
+                  minChildSize: 0.2,
+                  maxChildSize: 0.92,
+                  snap: true,
+                  snapSizes: const [ExploreScreen._sheetInitial],
+                  builder: (context, scrollController) => _SheetSurface(
+                    child: SearchPanel(
+                      scrollController: scrollController,
+                      showDragHandle: true,
+                    ),
                   ),
                 ),
               ),
@@ -60,26 +87,51 @@ class ExploreScreen extends StatelessWidget {
   }
 }
 
-class _MapArea extends StatelessWidget {
-  const _MapArea({required this.contentAlignment});
+/// The live map plus the floating brand header. Measures the header so the
+/// map can keep Mapbox's logo and attribution visible just below it.
+class _MapArea extends StatefulWidget {
+  const _MapArea({required this.bottomInset});
 
-  final Alignment contentAlignment;
+  final ValueListenable<double> bottomInset;
+
+  @override
+  State<_MapArea> createState() => _MapAreaState();
+}
+
+class _MapAreaState extends State<_MapArea> {
+  final _headerKey = GlobalKey();
+  double _headerBottom = 0;
+
+  void _measureHeader(Duration _) {
+    if (!mounted) return;
+    final box = _headerKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final bottom = box.size.height + MediaQuery.paddingOf(context).top;
+    if ((bottom - _headerBottom).abs() > 0.5) {
+      setState(() => _headerBottom = bottom);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    SchedulerBinding.instance.addPostFrameCallback(_measureHeader);
     return Stack(
       children: [
         Positioned.fill(
-          child: MapPlaceholder(contentAlignment: contentAlignment),
+          child: ExploreMap(
+            topInset: _headerBottom,
+            bottomInset: widget.bottomInset,
+          ),
         ),
-        const Positioned(
+        Positioned(
           top: 0,
           left: 0,
           right: 0,
           child: SafeArea(
             child: Padding(
-              padding: EdgeInsets.all(AppSpacing.lg),
-              child: BrandHeader(),
+              key: _headerKey,
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: const BrandHeader(),
             ),
           ),
         ),
