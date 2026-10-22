@@ -10,6 +10,12 @@
 4. Keep data model migration simple, avoid persisting credentials or sensitive location history unnecessarily.
 5. Test local save/read/delete, compatibility with live analysis, and that core demo still works.
 
+## Scheduling and validation
+
+**Default: SKIP until after the October 23 pitching demo.** Start only if the owner explicitly approves optional enhancements after Phase 06 has passed. Do not risk the already working APK.
+
+If approved later, first perform focused SQLite model/repository tests and analyzer checks. An actual app-restart persistence check is required before claiming saved data survives restarts, but avoid repeated APK builds/installs without a diagnosed failure.
+
 ## Acceptance gate
 
 - [ ] Saved analyses survive an app restart.
