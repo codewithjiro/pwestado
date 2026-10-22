@@ -175,21 +175,25 @@ Do not generate dozens of empty files or extra modules just to match a diagram. 
 | **01** | [Flutter shell and design](phases/PHASE_01_APP_SHELL.md) | Runs with polished home screen; no runtime errors | [x] |
 | **02** | [Mapbox + GPS + site selection](phases/PHASE_02_MAPBOX_LOCATION.md) | Real map moves, long press picks a site, GPS denial handled | [x] |
 | **03** | [Overpass + competitor markers](phases/PHASE_03_COMPETITORS.md) | Real request / honest empty or error, markers/counts | [x] |
-| **04** | [Evidence + scoring](phases/PHASE_04_SCORING.md) | Deterministic breakdown, coverage warnings, unit tests | [ ] |
-| **05** | [Two-site comparison](phases/PHASE_05_COMPARISON.md) | Site A / B same category/radius, compare live vs cached vs demo | [ ] |
-| **06** | [Reliability + APK + demo](phases/PHASE_06_RELEASE.md) | Installed APK and scripted demo on physical phone | [ ] |
-| **07** | [Optional SQLite](phases/PHASE_07_OPTIONAL_SQLITE.md) | Never blocks or destabilizes core pitching demo | [ ] |
+| **04** | [Evidence + scoring](phases/PHASE_04_SCORING.md) | Pure Dart scoring, targeted tests and analyzer (no APK) | [ ] |
+| **05** | [Two-site comparison](phases/PHASE_05_COMPARISON.md) | Independent A/B + matched settings, focused tests (no APK) | [ ] |
+| **06** | [Reliability + APK + demo](phases/PHASE_06_RELEASE.md) | Full regression, release APK and physical-phone demo | [ ] |
+| **07** | [Optional SQLite](phases/PHASE_07_OPTIONAL_SQLITE.md) | Optional after pitch; explicit approval only | [ ] |
 
-**Stop rule:** After each phase, run the listed checks, show what actually passed, update only the matching checked box, then **STOP and wait for the owner's approval** to start the next phase. If blocked, solve that blocker only. Do not silently skip mandatory phases.
+**Stop rule:** Complete only the approved phase, run its **proportionate** checks, report which checks really passed and which device interactions remain deferred, update only verified checkboxes, then STOP. Phase 06 centralizes the complete physical-device proof.
 
-### Cross-phase quality gate
+### Fast iteration gates (effective after Phase 03)
 
-- `dart format .`
-- `flutter analyze` (no new errors)
-- `flutter test` (tests should pass; build tests as features arrive)
-- `flutter run` on actual Android device, and/or `flutter build apk --debug` where applicable
-- Demonstrate feature behavior, not just screen rendering.
-- Never claim execution results, API output, or APK availability without actually checking them.
+| Phase | Required lightweight checks | Deferred checks |
+|---|---|---|
+| **04 - Scoring** | Format changed Dart files, `flutter analyze --no-pub`, targeted `flutter test --no-pub` unit/widget tests with mocked OSM evidence. | Android builds/installs, emulator, Mapbox token prompts, repeated Overpass probes and screenshots. |
+| **05 - Comparison** | Same format/analyzer/targeted test gate, using fake repositories to verify independent A/B selection, parity and mixed source statuses. | Android builds/installs and live end-to-end walkthrough. |
+| **06 - Release** | Full `flutter analyze` and `flutter test`, one release APK build with public token, install and complete demo on physical POCO phone. | Duplicate debug APK builds and unnecessary repeated installations. |
+| **07 - Optional SQLite** | Skip until after pitch unless explicitly approved; when approved, focused storage tests first. | Anything that delays the verified pitching APK. |
+
+**Exception:** Native/Gradle/Mapbox platform changes that cannot be assessed by unit/widget tests may justify one focused emulator or build smoke check earlier. State why; it is an exception, not the default phase gate.
+
+**Integrity:** A Phase 04/05 *code/test gate* may PASS while final physical-device integration remains pending Phase 06. Never assert real device, live API, screenshots or APK checks without executing them. Run `flutter pub get` when dependencies actually change; otherwise prefer `--no-pub`. Format only changed Dart files.
 
 ## 7. Windows + VS Code environment
 
