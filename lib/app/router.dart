@@ -1,12 +1,15 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/explore/presentation/explore_screen.dart';
 import '../features/saved/presentation/saved_analyses_screen.dart';
 import '../features/saved/presentation/saved_analysis_detail_screen.dart';
+import '../features/splash/presentation/splash_screen.dart';
 import '../shared/widgets/app_error_view.dart';
 
 abstract final class AppRoutes {
+  static const splash = '/splash';
   static const explore = '/';
   static const saved = '/saved';
 
@@ -15,11 +18,27 @@ abstract final class AppRoutes {
 
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
-    initialLocation: AppRoutes.explore,
+    // Cold start only: the splash replaces itself with Explore via go(), and
+    // nothing navigates back to it.
+    initialLocation: AppRoutes.splash,
     routes: [
       GoRoute(
+        path: AppRoutes.splash,
+        pageBuilder: (context, state) =>
+            NoTransitionPage(key: state.pageKey, child: const SplashScreen()),
+      ),
+      GoRoute(
         path: AppRoutes.explore,
-        builder: (context, state) => const ExploreScreen(),
+        // Fades in over the splash; pushes onto Explore are unaffected.
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          transitionDuration: const Duration(milliseconds: 380),
+          transitionsBuilder: (context, animation, _, child) => FadeTransition(
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+            child: child,
+          ),
+          child: const ExploreScreen(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.saved,

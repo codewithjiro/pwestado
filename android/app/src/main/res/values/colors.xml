@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the Flutter splash background (BrandColors.emerald900) so
+         there is no white flash between the native launch and first frame. -->
+    <color name="splash_background">#0B3D2E</color>
+</resources>
