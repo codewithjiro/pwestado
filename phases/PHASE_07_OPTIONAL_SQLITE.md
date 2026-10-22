@@ -18,10 +18,18 @@ If approved later, first perform focused SQLite model/repository tests and analy
 
 ## Acceptance gate
 
-- [ ] Saved analyses survive an app restart.
-- [ ] Source mode and time preserved accurately.
-- [ ] No regression in Mapbox/Overpass/scoring/comparison.
-- [ ] Builds and runs on the Android phone.
+- [ ] Saved analyses survive an app restart. *(Database close/reopen is verified by `test/saved/saved_analysis_repository_test.dart` against real SQLite via sqflite_common_ffi. The restart check on a real Android app is pending the physical-device run.)*
+- [x] Source mode and time preserved accurately. *(Tests check LIVE-SOURCED / CACHED / SAMPLE DEMO DATA labels and that save and retrieval timestamps survive to the millisecond, including after undoing a delete.)*
+- [ ] No regression in Mapbox/Overpass/scoring/comparison. *(Full `flutter analyze` and `flutter test` pass: 218 tests. Mapbox rendering and live Overpass on a phone are still pending.)*
+- [ ] Builds and runs on the Android phone. *(See the build note in the latest report. Running on the POCO phone is pending.)*
+
+### Implementation notes (owner-approved combined UI polish + Phase 07 cycle)
+
+- Storage: `sqflite` and `path`. One table, `saved_analyses`, with schema version 1. Migrations are a per-version statement list that runs from `onCreate` and `onUpgrade`. Each row has summary columns plus a versioned JSON evidence snapshot.
+- Reopening rebuilds the score from the stored evidence with the unchanged scoring code, so no request is made. If the scoring rules ever change, the detail screen shows both the saved total and the recalculated total.
+- Damaged rows show as unreadable entries that can still be deleted. Damaged evidence opens as a "could not be read" screen. No value is guessed.
+- A record is written only when the user taps Save. Delete offers Undo, which restores the original id and timestamps. This storage is separate from the in-memory Overpass caches. No token or credential is stored.
+- A saved analysis can be loaded into Site A or Site B. The search settings switch to match it, the usual comparison rules apply, and the slot is marked HISTORICAL.
 
 ## Stop
 

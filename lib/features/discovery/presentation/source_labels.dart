@@ -19,6 +19,13 @@ class CompetitorDot extends StatelessWidget {
         color: BrandColors.competitorOrange,
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33E8772E),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Icon(Icons.storefront, color: Colors.white, size: size * 0.5),
     );
@@ -140,8 +147,8 @@ class SampleBanner extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: const Color(0xFFE2B93B), width: 1.5),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: BrandColors.amberEdge, width: 1.5),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

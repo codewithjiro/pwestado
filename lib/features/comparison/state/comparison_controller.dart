@@ -12,6 +12,7 @@ import '../../discovery/data/competitor_repository.dart';
 import '../../discovery/data/sample_competitors.dart';
 import '../../discovery/domain/competitors.dart';
 import '../../explore/state/explore_controller.dart';
+import '../../saved/domain/saved_analysis.dart';
 import '../domain/site_comparison.dart';
 
 enum SlotStatus {
@@ -41,6 +42,7 @@ class SlotState {
     this.failure,
     this.statusCode,
     this.reused = false,
+    this.savedAt,
   });
 
   final SelectedSite? site;
@@ -56,6 +58,12 @@ class SlotState {
   /// True when [analysis] was taken over from the main screen's analysis
   /// instead of being requested again.
   final bool reused;
+
+  /// Set when [analysis] was reopened from Saved Analyses: a historical
+  /// result with its original evidence times, not a fresh request.
+  final DateTime? savedAt;
+
+  bool get isSaved => savedAt != null;
 
   bool get isLoading => status == SlotStatus.loading;
 }
@@ -172,6 +180,7 @@ class ComparisonController extends Notifier<ComparisonState> {
             status: SlotStatus.ready,
             analysis: current.analysis,
             reused: current.reused,
+            savedAt: current.savedAt,
           ),
         );
       }
@@ -278,6 +287,22 @@ class ComparisonController extends Notifier<ComparisonState> {
     );
   }
 
+  /// Puts a reopened saved analysis in [slot], as it was saved. Nothing is
+  /// requested; [loadSaved] callers align the search settings first so the
+  /// usual comparison rules (same category and radius) apply.
+  void loadSaved(CompareSlot slot, SavedAnalysis saved) {
+    _cancel(slot);
+    state = state.withSlot(
+      slot,
+      SlotState(
+        site: saved.site,
+        status: SlotStatus.ready,
+        analysis: saved.analysis,
+        savedAt: saved.savedAt,
+      ),
+    );
+  }
+
   CompetitorQuery _queryFor(SelectedSite site) {
     final explore = ref.read(exploreControllerProvider);
     return CompetitorQuery.forSite(site, explore.category, explore.radius);
@@ -352,5 +377,9 @@ final siteComparisonProvider = Provider<SiteComparison>((ref) {
     category: explore.category,
     radius: explore.radius,
     now: DateTime.now(),
+    saved: {
+      for (final slot in CompareSlot.values)
+        if (slots[slot].isSaved) slot,
+    },
   );
 });

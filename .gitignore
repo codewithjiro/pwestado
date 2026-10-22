@@ -63,3 +63,7 @@ secrets/
 # VS Code launch configs often embed --dart-define tokens.
 .vscode/launch.json
 .vscode/settings.local.json
+
+# Local SQLite files (saved analyses live on the device, never in git)
+*.db
+*.db-journal

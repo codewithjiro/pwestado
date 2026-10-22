@@ -153,9 +153,9 @@ class _SheetSurface extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
         boxShadow: [
           BoxShadow(
-            color: Color(0x290B3D2E),
-            blurRadius: 24,
-            offset: Offset(0, -4),
+            color: Color(0x2E0B3D2E),
+            blurRadius: 28,
+            offset: Offset(0, -6),
           ),
         ],
       ),

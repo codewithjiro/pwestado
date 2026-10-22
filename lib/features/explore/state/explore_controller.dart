@@ -83,6 +83,14 @@ class ExploreController extends Notifier<ExploreState> {
     state = state.copyWith(radius: radius);
   }
 
+  /// Switches to [category] and [radius] together, e.g. to match a saved
+  /// analysis. Returns true if anything changed.
+  bool applySettings(BusinessCategory category, SearchRadius radius) {
+    if (state.category == category && state.radius == radius) return false;
+    state = state.copyWith(category: category, radius: radius);
+    return true;
+  }
+
   /// Pins a site picked on the map.
   void selectSite({required double latitude, required double longitude}) {
     _siteGeneration++;

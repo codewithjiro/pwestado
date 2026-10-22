@@ -3,15 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
 import '../../../shared/widgets/elapsed_wait.dart';
+import '../../../shared/widgets/surfaces.dart';
 import '../../../core/models/selected_site.dart';
 import '../../../core/utils/geo.dart';
 import '../../analysis/domain/site_analysis.dart';
 import '../../analysis/domain/suitability_scoring.dart';
+import '../../analysis/presentation/site_analysis_section.dart';
 import '../../discovery/domain/competitors.dart';
 import '../../discovery/presentation/competitor_results.dart';
 import '../../discovery/presentation/source_labels.dart';
 import '../../explore/presentation/widgets/compare_pin_image.dart';
 import '../../explore/state/explore_controller.dart';
+import '../../saved/presentation/saved_widgets.dart';
+import '../../saved/state/saved_analyses_controller.dart';
 import '../domain/site_comparison.dart';
 import '../state/comparison_controller.dart';
 
@@ -63,17 +67,12 @@ class ComparisonSection extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.compare_arrows_rounded,
-                  color: BrandColors.emerald700,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(child: Text(title, style: _title(context))),
-              ],
+            const SectionHeader(
+              icon: Icons.compare_arrows_rounded,
+              title: title,
+              subtitle: 'Site A vs Site B, same settings',
             ),
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: AppSpacing.md),
             Text(
               'Both sites are analyzed with the same settings: '
               '${explore.category.label} · ${explore.radius.label}. Each site '
@@ -130,7 +129,7 @@ class ComparisonSection extends ConsumerWidget {
   }
 }
 
-class _SlotTile extends StatelessWidget {
+class _SlotTile extends ConsumerWidget {
   const _SlotTile({
     required this.slot,
     required this.state,
@@ -148,11 +147,19 @@ class _SlotTile extends StatelessWidget {
   final ComparisonController controller;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final site = state.site;
     final analysis = state.analysis;
     final current = currentSite;
+    final savedAt = state.savedAt;
+    final alreadySaved =
+        analysis != null &&
+        ref.watch(
+          savedAnalysesControllerProvider.select(
+            (s) => s.savedIds.containsKey(analysis),
+          ),
+        );
     final canTakePin = current != null && current.id != site?.id;
 
     final List<Widget> details;
@@ -203,6 +210,12 @@ class _SlotTile extends StatelessWidget {
               'Reused from the analysis above. No new request.',
               style: _muted(context),
             ),
+          if (savedAt != null)
+            Text(
+              'Saved analysis from ${formatSavedDate(context, savedAt)}. '
+              'Historical evidence, not refreshed.',
+              style: _muted(context),
+            ),
         ];
     }
 
@@ -246,6 +259,17 @@ class _SlotTile extends StatelessWidget {
             icon: const Icon(Icons.refresh, size: 18),
             label: const Text('Refresh'),
           ),
+        if (state.status == SlotStatus.ready &&
+            !needsAnalysis &&
+            !state.isSaved &&
+            !state.reused &&
+            !alreadySaved)
+          TextButton.icon(
+            style: _compact,
+            onPressed: () => saveAnalysis(context, ref, site!, analysis!),
+            icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+            label: const Text('Save'),
+          ),
         if (state.status == SlotStatus.failed)
           OutlinedButton.icon(
             style: _compact,
@@ -262,12 +286,15 @@ class _SlotTile extends StatelessWidget {
       ],
     ];
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: site == null ? BrandColors.offWhite : BrandColors.surfaceRaised,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: BrandColors.outline),
+        color: site == null ? BrandColors.offWhite : BrandColors.mintWash,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: site == null ? BrandColors.outline : BrandColors.mintSoft,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,6 +313,7 @@ class _SlotTile extends StatelessWidget {
                     Text(slot.title, style: theme.textTheme.titleSmall),
                     if (analysis != null)
                       SourceBadge(source: analysis.competitors.source),
+                    if (state.isSaved) const HistoricalPill(),
                   ],
                 ),
                 if (site != null)
@@ -330,6 +358,7 @@ class SlotBadge extends StatelessWidget {
         color: background,
         shape: BoxShape.circle,
         border: Border.all(color: BrandColors.emerald900, width: 1.5),
+        boxShadow: AppShadows.card,
       ),
       child: Text(
         slot.letter,
@@ -382,7 +411,7 @@ class ComparisonTable extends StatelessWidget {
     final higher = comparison.higher;
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: BrandColors.outline),
       ),
       clipBehavior: Clip.antiAlias,
@@ -393,12 +422,13 @@ class ComparisonTable extends StatelessWidget {
           2: FlexColumnWidth(),
         },
         border: const TableBorder(
-          horizontalInside: BorderSide(color: BrandColors.outline),
+          horizontalInside: BorderSide(color: BrandColors.outlineSoft),
+          verticalInside: BorderSide(color: BrandColors.outlineSoft),
         ),
         defaultVerticalAlignment: TableCellVerticalAlignment.top,
         children: [
           TableRow(
-            decoration: const BoxDecoration(color: BrandColors.offWhite),
+            decoration: const BoxDecoration(color: BrandColors.mintWash),
             children: [
               const _Cell(SizedBox.shrink()),
               for (final slot in CompareSlot.values)
@@ -607,7 +637,6 @@ class _Verdict extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final higher = comparison.higher;
     final anyReal = CompareSlot.values.any(
       (s) => slots[s].analysis != null && !slots[s].analysis!.isSample,
@@ -616,22 +645,20 @@ class _Verdict extends StatelessWidget {
     final Widget headline;
     if (comparison.blockedBy(ComparisonBlockerKind.missingAnalysis) &&
         comparison.blockers.length == 1) {
-      headline = _Note(
+      headline = InfoNote(
         icon: Icons.hourglass_empty,
         title: 'Waiting for both analyses',
         lines: [comparison.blockers.single.message],
       );
     } else if (!comparison.isComparable) {
-      headline = _Note(
+      headline = InfoNote(
         icon: Icons.block,
         title: ComparisonSection.notComparable,
         lines: [for (final b in comparison.blockers) b.message],
-        background: const Color(0xFFFFF4F2),
-        border: const Color(0xFFF1C9C2),
-        iconColor: theme.colorScheme.error,
+        tone: NoteTone.danger,
       );
     } else if (higher == null) {
-      headline = _Note(
+      headline = InfoNote(
         icon: Icons.drag_handle_rounded,
         title: ComparisonSection.similarScores,
         lines: [
@@ -644,7 +671,7 @@ class _Verdict extends StatelessWidget {
     } else {
       final winner = slots[higher].analysis!;
       final loser = slots[higher.other].analysis!;
-      headline = _Note(
+      headline = InfoNote(
         icon: Icons.trending_up_rounded,
         title: '${higher.title} has the higher heuristic score',
         lines: [
@@ -653,8 +680,7 @@ class _Verdict extends StatelessWidget {
               '(+${comparison.difference!.abs().toStringAsFixed(1)} points) '
               'for ${settingsLabel(winner.competitors.query)}.',
         ],
-        background: BrandColors.mintSoft,
-        border: BrandColors.mint,
+        tone: NoteTone.positive,
       );
     }
 
@@ -668,12 +694,10 @@ class _Verdict extends StatelessWidget {
         headline,
         for (final warning in comparison.warnings) ...[
           const SizedBox(height: AppSpacing.sm),
-          _Note(
+          InfoNote(
             icon: Icons.warning_amber_rounded,
             lines: [warning],
-            background: SampleBanner.background,
-            border: const Color(0xFFE2B93B),
-            iconColor: SampleBanner.foreground,
+            tone: NoteTone.warning,
           ),
         ],
         const SizedBox(height: AppSpacing.sm),
@@ -687,87 +711,20 @@ class _Verdict extends StatelessWidget {
   }
 }
 
-class _Note extends StatelessWidget {
-  const _Note({
-    required this.icon,
-    required this.lines,
-    this.title,
-    this.background = BrandColors.offWhite,
-    this.border = BrandColors.outline,
-    this.iconColor = BrandColors.emerald700,
-  });
-
-  final IconData icon;
-  final String? title;
-  final List<String> lines;
-  final Color background;
-  final Color border;
-  final Color iconColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: border),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: iconColor, size: 20),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (title != null)
-                  Text(title!, style: theme.textTheme.titleSmall),
-                for (final line in lines)
-                  Text(line, style: theme.textTheme.bodySmall),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _Panel extends StatelessWidget {
   const _Panel({required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: BrandColors.surfaceRaised,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: const BorderSide(color: BrandColors.mint, width: 1.5),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: child,
-      ),
-    );
-  }
+  Widget build(BuildContext context) => AppCard(child: child);
 }
 
 /// "64 / 100" or "Insufficient data".
 String _scoreText(double? total) =>
     total == null ? 'Insufficient data' : '${total.round()} / 100';
 
-TextStyle? _title(BuildContext context) =>
-    Theme.of(context).textTheme.titleMedium;
-
-TextStyle? _muted(BuildContext context) => Theme.of(
-  context,
-).textTheme.bodySmall?.copyWith(color: BrandColors.inkMuted);
+TextStyle? _muted(BuildContext context) => mutedSmall(context);
 
 final _compact = ButtonStyle(
   minimumSize: WidgetStateProperty.all(const Size(0, 48)),

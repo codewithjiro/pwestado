@@ -7,7 +7,9 @@ import 'package:pwestado/features/explore/data/location_service.dart';
 import 'package:pwestado/features/explore/presentation/widgets/map_unavailable.dart';
 import 'package:pwestado/features/explore/presentation/widgets/search_panel.dart';
 import 'package:pwestado/features/explore/state/explore_controller.dart';
+import 'package:pwestado/features/saved/data/saved_analysis_repository.dart';
 
+import 'fake_saved_analysis_repository.dart';
 import 'fake_location_service.dart';
 
 // Widget tests run without --dart-define=ACCESS_TOKEN, so the map area shows
@@ -22,7 +24,12 @@ Future<void> pumpApp(WidgetTester tester, Size size) async {
   location = FakeLocationService();
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [locationServiceProvider.overrideWithValue(location)],
+      overrides: [
+        locationServiceProvider.overrideWithValue(location),
+        savedAnalysisRepositoryProvider.overrideWithValue(
+          FakeSavedAnalysisRepository(),
+        ),
+      ],
       child: const PwestadoApp(),
     ),
   );

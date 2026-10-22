@@ -175,14 +175,18 @@ class _MapButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = primary ? Colors.white : BrandColors.emerald700;
+    final foreground = primary ? BrandColors.mint : BrandColors.emerald700;
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: primary ? BrandColors.emerald700 : BrandColors.surfaceRaised,
-        elevation: 3,
+        color: primary ? BrandColors.emerald900 : BrandColors.surfaceRaised,
+        elevation: 4,
         shadowColor: const Color(0x550B3D2E),
-        shape: const CircleBorder(),
+        shape: CircleBorder(
+          side: primary
+              ? const BorderSide(color: BrandColors.mint, width: 1.5)
+              : const BorderSide(color: BrandColors.outlineSoft),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: busy ? null : onPressed,

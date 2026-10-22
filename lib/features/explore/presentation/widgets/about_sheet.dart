@@ -60,6 +60,14 @@ class _AboutSheet extends StatelessWidget {
                   'A transparent heuristic with a visible formula. Not a '
                   'measure of foot traffic, demand, or profit.',
             ),
+            const _Point(
+              icon: Icons.bookmarks_outlined,
+              title: 'Saved analyses',
+              body:
+                  'Stored only on this device, and only when you tap Save. '
+                  'They keep their original evidence and retrieval times, '
+                  'are never refreshed, and are not current business data.',
+            ),
           ],
         ),
       ),

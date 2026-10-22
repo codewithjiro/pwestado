@@ -104,6 +104,7 @@ SiteComparison compareSites({
   required BusinessCategory category,
   required SearchRadius radius,
   required DateTime now,
+  Set<CompareSlot> saved = const {},
 }) {
   final blockers = <ComparisonBlocker>[];
   final warnings = <String>[];
@@ -199,6 +200,14 @@ SiteComparison compareSites({
       'Low confidence: OpenStreetMap coverage is sparse or incomplete for at '
       'least one site, so a score difference may reflect missing map data.',
     );
+  }
+  for (final slot in CompareSlot.values) {
+    if (saved.contains(slot)) {
+      warnings.add(
+        '${slot.title} is a saved historical analysis. Its evidence is from '
+        'when it was retrieved, not current business data.',
+      );
+    }
   }
   for (final (slot, analysis) in [(CompareSlot.a, a), (CompareSlot.b, b)]) {
     if (analysis.isSample) continue;

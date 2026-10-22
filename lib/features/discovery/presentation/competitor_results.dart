@@ -110,8 +110,13 @@ class _Loading extends StatelessWidget {
         children: [
           Text('Searching OpenStreetMap…', style: theme.textTheme.titleSmall),
           const SizedBox(height: AppSpacing.sm),
-          const LinearProgressIndicator(
-            semanticsLabel: 'Searching OpenStreetMap',
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            child: const LinearProgressIndicator(
+              minHeight: 6,
+              backgroundColor: BrandColors.mintSoft,
+              semanticsLabel: 'Searching OpenStreetMap',
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           const ElapsedWait(),
@@ -185,8 +190,8 @@ class _ErrorView extends StatelessWidget {
     final theme = Theme.of(context);
     final (title, message, icon) = describeOverpassFailure(failure, statusCode);
     return _Card(
-      color: const Color(0xFFFFF4F2),
-      borderColor: const Color(0xFFF1C9C2),
+      color: BrandColors.roseWash,
+      borderColor: BrandColors.roseEdge,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -254,7 +259,18 @@ class _EmptyView extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.search_off, color: BrandColors.emerald700),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: BrandColors.mintSoft,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: const Icon(
+                  Icons.search_off,
+                  color: BrandColors.emerald700,
+                ),
+              ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
@@ -471,11 +487,12 @@ class _BusinessTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Material(
-        color: selected ? BrandColors.mintSoft : BrandColors.surfaceRaised,
+        color: selected ? BrandColors.mintWash : BrandColors.surfaceRaised,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           side: BorderSide(
-            color: selected ? BrandColors.emerald500 : BrandColors.outline,
+            color: selected ? BrandColors.emerald500 : BrandColors.outlineSoft,
+            width: selected ? 1.5 : 1,
           ),
         ),
         clipBehavior: Clip.antiAlias,
@@ -520,10 +537,21 @@ class _BusinessTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    formatDistance(business.distanceMeters),
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: BrandColors.emerald700,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: BrandColors.mintWash,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    child: Text(
+                      formatDistance(business.distanceMeters),
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: BrandColors.emerald700,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   const Icon(Icons.chevron_right, color: BrandColors.inkMuted),
@@ -576,8 +604,8 @@ class _CoverageNote extends StatelessWidget {
 class _Card extends StatelessWidget {
   const _Card({
     required this.child,
-    this.color = BrandColors.offWhite,
-    this.borderColor = BrandColors.outline,
+    this.color = BrandColors.surfaceRaised,
+    this.borderColor = BrandColors.outlineSoft,
   });
 
   final Widget child;
@@ -595,8 +623,9 @@ class _Card extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: borderColor),
+        boxShadow: AppShadows.card,
       ),
       child: child,
     );

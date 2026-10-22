@@ -10,7 +10,9 @@ import 'package:pwestado/features/discovery/domain/competitors.dart';
 import 'package:pwestado/features/explore/data/location_service.dart';
 import 'package:pwestado/features/explore/presentation/widgets/search_panel.dart';
 import 'package:pwestado/features/explore/state/explore_controller.dart';
+import 'package:pwestado/features/saved/data/saved_analysis_repository.dart';
 
+import '../fake_saved_analysis_repository.dart';
 import '../fake_competitor_repository.dart';
 import '../fake_location_service.dart';
 import '../fake_site_context_repository.dart';
@@ -34,6 +36,9 @@ Future<ProviderContainer> pumpApp(WidgetTester tester) async {
         locationServiceProvider.overrideWithValue(FakeLocationService()),
         competitorRepositoryProvider.overrideWithValue(competitors),
         siteContextRepositoryProvider.overrideWithValue(contexts),
+        savedAnalysisRepositoryProvider.overrideWithValue(
+          FakeSavedAnalysisRepository(),
+        ),
       ],
       child: const PwestadoApp(),
     ),
