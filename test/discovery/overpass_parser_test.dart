@@ -160,6 +160,8 @@ void main() {
         osmTagKey: 'amenity',
         osmTagValue: 'cafe"];out;node(1',
         icon: Icons.store,
+        group: BusinessGroup.food,
+        description: 'test',
       );
       expect(
         () => OverpassQuery.competitors(query(category: evil)),

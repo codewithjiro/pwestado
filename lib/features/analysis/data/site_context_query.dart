@@ -1,3 +1,4 @@
+import '../../../core/models/search_radius.dart';
 import '../../../core/utils/geo.dart';
 import '../../discovery/domain/competitors.dart';
 import '../domain/site_context.dart';
@@ -12,7 +13,7 @@ abstract final class SiteContextQuery {
   /// Caps on returned elements, to keep responses small.
   static const maxPlaces = 400;
   static const maxRoads = 200;
-  static const maxRadiusMeters = 2000;
+  static const maxRadiusMeters = SearchRadius.maxMeters;
 
   static final _tagPattern = RegExp(r'^[a-z][a-z0-9_:]*$');
 
@@ -21,8 +22,10 @@ abstract final class SiteContextQuery {
       throw ArgumentError('Invalid coordinates');
     }
     final radius = query.radius.meters;
-    if (radius <= 0 || radius > maxRadiusMeters) {
-      throw ArgumentError('Radius must be 1..$maxRadiusMeters m');
+    if (radius < SearchRadius.minMeters || radius > maxRadiusMeters) {
+      throw ArgumentError(
+        'Radius must be ${SearchRadius.minMeters}..$maxRadiusMeters m',
+      );
     }
     final lat = query.latitude.toStringAsFixed(6);
     final lon = query.longitude.toStringAsFixed(6);

@@ -48,9 +48,10 @@ class CompetitorQuery {
   final BusinessCategory category;
   final SearchRadius radius;
 
-  /// Identifies equivalent searches (coordinates to ~1 m).
+  /// Identifies equivalent searches (coordinates to ~1 m). The radius is
+  /// its meter value, so a custom 1000 m and the 1 km preset share a key.
   String get cacheKey =>
-      '${category.osmTag}@${latitude.toStringAsFixed(5)},'
+      '${category.id}:${category.osmTag}@${latitude.toStringAsFixed(5)},'
       '${longitude.toStringAsFixed(5)}/${radius.meters}';
 
   @override

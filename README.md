@@ -43,7 +43,22 @@ Google retires it. Gemini is called only when you tap "Ask AI to explain",
 and it explains the deterministic 40/30/30 score without changing it.
 
 `backend/ai-insights-worker` is the earlier server-side proxy design. The app
-no longer uses it; it is kept for reference.
+no longer uses it; it is kept for reference. Its request allowlist still
+covers only the first five categories and the 500 m / 1 km / 2 km radii.
+
+## Business types and search distance
+
+- `BusinessCategory.all` (`lib/core/models/business_category.dart`) lists 41
+  business types. Each one maps to a single OSM tag, checked against its
+  wiki.openstreetmap.org `Tag:` page. Category ids are stored in saved analyses
+  and must never change.
+- Search and "Other business type" (`BusinessTypeSearch`) are local lookups of
+  labels and aliases, including Filipino terms. Typed text never becomes an
+  OSM tag or query. If there is no reliable mapping, the app says so and
+  suggests related types instead of searching.
+- `SearchRadius` holds any whole number of meters from 100 to 2,000. The
+  presets are 250 m, 500 m, 1 km and 2 km. Equal meters are the same query,
+  cache entry and saved setting.
 
 ## Design system
 

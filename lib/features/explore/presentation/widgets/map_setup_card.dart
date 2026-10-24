@@ -6,7 +6,6 @@ import '../../../../app/router.dart';
 import '../../../../app/theme.dart';
 import '../../../../core/config/mapbox_config.dart';
 import '../../../../core/models/business_category.dart';
-import '../../../../core/models/search_radius.dart';
 import '../../../../core/models/selected_site.dart';
 import '../../../../shared/widgets/category_art.dart';
 import '../../../../shared/widgets/surfaces.dart';
@@ -14,6 +13,8 @@ import '../../../discovery/presentation/competitor_summary.dart';
 import '../../../discovery/state/competitor_controller.dart';
 import '../../../places/presentation/site_place_label.dart';
 import '../../state/explore_controller.dart';
+import 'business_type_picker.dart';
+import 'search_distance_picker.dart';
 
 /// The map tab's compact controls, in the order a first-time user needs
 /// them: where (location), what (business type), how far (radius), then
@@ -29,8 +30,9 @@ class MapSetupCard extends ConsumerWidget {
   static const useMyLocation = 'Use my location';
   static const pickOnMap = 'Pick on map';
   static const openAnalyze = 'See the suitability score';
+  static const businessTypeLabel = 'Business type';
 
-  /// Below this content width the radius buttons move under the business
+  /// Below this content width the distance field moves under the business
   /// type instead of squeezing it.
   static const _sideBySideMinWidth = 340.0;
 
@@ -80,26 +82,13 @@ class MapSetupCard extends ConsumerWidget {
         const SizedBox(height: AppSpacing.md),
         LayoutBuilder(
           builder: (context, constraints) {
-            final category = _CategoryMenu(
+            final category = _BusinessTypeField(
               value: state.category,
               onChanged: controller.selectCategory,
             );
-            final radius = SegmentedButton<SearchRadius>(
-              showSelectedIcon: false,
-              style: SegmentedButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-              ),
-              segments: [
-                for (final radius in SearchRadius.values)
-                  ButtonSegment(
-                    value: radius,
-                    label: Text(radius.label),
-                    tooltip: 'Search within ${radius.label}',
-                  ),
-              ],
-              selected: {state.radius},
-              onSelectionChanged: (s) => controller.selectRadius(s.single),
+            final radius = SearchDistanceField(
+              value: state.radius,
+              onChanged: controller.selectRadius,
             );
             // Side by side on normal phones; stacked on narrow ones.
             if (constraints.maxWidth < _sideBySideMinWidth) {
@@ -114,9 +103,9 @@ class MapSetupCard extends ConsumerWidget {
             }
             return Row(
               children: [
-                Expanded(child: category),
+                Expanded(flex: 3, child: category),
                 const SizedBox(width: AppSpacing.sm),
-                radius,
+                Expanded(flex: 2, child: radius),
               ],
             );
           },
@@ -139,6 +128,14 @@ class MapSetupCard extends ConsumerWidget {
             textAlign: TextAlign.center,
             style: mutedSmall(context),
           ),
+          if (state.canSearch && state.category.coverageNote != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              state.category.coverageNote!,
+              textAlign: TextAlign.center,
+              style: mutedSmall(context),
+            ),
+          ],
         ] else ...[
           const CompetitorSummary(compact: true),
           if (competitors.result != null) ...[
@@ -222,49 +219,50 @@ class _SiteRow extends StatelessWidget {
   }
 }
 
-/// Business type as a labeled dropdown: one row instead of five chips.
-class _CategoryMenu extends StatelessWidget {
-  const _CategoryMenu({required this.value, required this.onChanged});
+/// The chosen business type as a field that opens the searchable picker.
+class _BusinessTypeField extends StatelessWidget {
+  const _BusinessTypeField({required this.value, required this.onChanged});
 
   final BusinessCategory value;
   final ValueChanged<BusinessCategory> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return InputDecorator(
-      decoration: const InputDecoration(
-        labelText: 'Business type',
-        isDense: true,
-        contentPadding: EdgeInsets.fromLTRB(12, 8, 4, 8),
-        border: OutlineInputBorder(),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<BusinessCategory>(
-          value: value,
-          isDense: true,
-          isExpanded: true,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          items: [
-            for (final category in BusinessCategory.all)
-              DropdownMenuItem(
-                value: category,
-                child: Row(
-                  children: [
-                    CategoryArt(category: category, size: 26),
-                    const SizedBox(width: AppSpacing.sm),
-                    Flexible(
-                      child: Text(
-                        category.label,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+    return Semantics(
+      button: true,
+      label:
+          '${MapSetupCard.businessTypeLabel}: ${value.label}. '
+          'Tap to change.',
+      excludeSemantics: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        onTap: () async {
+          FocusScope.of(context).unfocus();
+          final chosen = await showBusinessTypePicker(context, current: value);
+          if (chosen != null) onChanged(chosen);
+        },
+        child: InputDecorator(
+          decoration: const InputDecoration(
+            labelText: MapSetupCard.businessTypeLabel,
+            isDense: true,
+            contentPadding: EdgeInsets.fromLTRB(12, 10, 8, 10),
+            border: OutlineInputBorder(),
+          ),
+          child: Row(
+            children: [
+              CategoryArt(category: value, size: 28),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  value.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ),
-          ],
-          onChanged: (category) {
-            if (category != null) onChanged(category);
-          },
+              Icon(Icons.search, color: context.palette.textSecondary),
+            ],
+          ),
         ),
       ),
     );

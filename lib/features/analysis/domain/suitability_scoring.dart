@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../../../core/models/search_radius.dart';
 import '../../../core/utils/geo.dart';
 
 // PWESTADO location suitability heuristic.
@@ -51,6 +52,12 @@ abstract final class SuitabilityRules {
   /// Below this many mapped places (competitors + complementary) the result
   /// is flagged as low confidence: OSM is probably just sparse here.
   static const sparseCoverageThreshold = 5;
+
+  /// At or below this search distance every competitor sits inside
+  /// [competitorNearMeters] and the complementary target N is tiny, so the
+  /// score swings on single records. Disclosed as a warning; the formula is
+  /// unchanged.
+  static const smallRadiusMeters = competitorNearMeters;
 }
 
 enum Criterion {
@@ -336,6 +343,15 @@ SuitabilityScore scoreSuitability(ScoringInput input) {
       'counts may be lower than what is really there.',
     );
   }
+  if (competitors != null &&
+      competitors.radiusMeters <= SuitabilityRules.smallRadiusMeters) {
+    warnings.add(
+      'With a search distance of ${SearchRadius.format(competitors.radiusMeters)}, '
+      'every mapped competitor counts at full weight and one extra mapped '
+      'place changes the score a lot. Compare locations using the same '
+      'distance.',
+    );
+  }
   if (roads != null && roads.roadCount == 0) {
     lowConfidence = true;
     warnings.add(
@@ -353,8 +369,7 @@ SuitabilityScore scoreSuitability(ScoringInput input) {
 }
 
 String _competitorEvidence(CompetitorEvidence e) {
-  final m = e.radiusMeters;
-  final radius = m >= 1000 && m % 1000 == 0 ? '${m ~/ 1000} km' : '$m m';
+  final radius = SearchRadius.format(e.radiusMeters);
   final near = e.nearCount;
   final far = e.count - near;
   final weighted =

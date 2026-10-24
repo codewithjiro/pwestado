@@ -84,7 +84,10 @@ abstract final class AiPayload {
       'label': label,
       'area': ?_area(area),
       'businessType': query.category.label,
+      'businessTypeIncludes': query.category.description,
+      'businessTypeNote': ?query.category.coverageNote,
       'radiusMeters': query.radius.meters,
+      'radiusLabel': query.radius.label,
       'source': source.name,
       'retrievedAt': competitors.fetchedAt.toUtc().toIso8601String(),
       'score': {
@@ -133,6 +136,8 @@ abstract final class AiPayload {
       ],
       'warnings': [
         if (score.lowConfidence) 'sparse_map_coverage',
+        if (query.radius.meters <= SuitabilityRules.smallRadiusMeters)
+          'small_search_radius',
         if (competitors.possiblyTruncated) 'competitor_list_may_be_cut_off',
         if (source == DataSource.sample) 'sample_demo_data',
         if (source == DataSource.cached) 'cached_copy',

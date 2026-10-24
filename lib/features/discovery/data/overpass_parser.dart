@@ -138,6 +138,8 @@ Map<String, String> _details(Map<String, String> tags) {
     'Brand': tags['brand'],
     'Operator': tags['operator'],
     'Cuisine': tags['cuisine']?.replaceAll(';', ', ').replaceAll('_', ' '),
+    // shop=hairdresser covers barbers and salons; this sub-tag says which.
+    'Hair service': tags['hairdresser']?.replaceAll(';', ', '),
     'Opening hours': tags['opening_hours'],
     'Phone': first(['phone', 'contact:phone']),
     'Website': first(['website', 'contact:website']),

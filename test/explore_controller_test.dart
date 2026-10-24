@@ -45,14 +45,26 @@ void main() {
     expect(state().radius, SearchRadius.km2);
   });
 
-  test('categories map to the agreed OSM tags', () {
-    expect(BusinessCategory.all.map((c) => c.osmTag), [
-      'amenity=cafe',
-      'amenity=restaurant',
-      'shop=convenience',
-      'shop=laundry',
-      'shop=bakery',
-    ]);
+  test('the first release categories keep their ids and OSM tags', () {
+    expect(
+      [
+        for (final id in [
+          'coffee_shop',
+          'restaurant',
+          'convenience',
+          'laundry',
+          'bakery',
+        ])
+          BusinessCategory.byId(id)!.osmTag,
+      ],
+      [
+        'amenity=cafe',
+        'amenity=restaurant',
+        'shop=convenience',
+        'shop=laundry',
+        'shop=bakery',
+      ],
+    );
   });
 
   group('site selection', () {

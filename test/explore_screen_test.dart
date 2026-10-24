@@ -10,6 +10,7 @@ import 'package:pwestado/features/explore/data/location_service.dart';
 import 'package:pwestado/features/explore/presentation/widgets/explore_map.dart';
 import 'package:pwestado/features/explore/presentation/widgets/map_setup_card.dart';
 import 'package:pwestado/features/explore/presentation/widgets/map_unavailable.dart';
+import 'package:pwestado/features/explore/presentation/widgets/search_distance_picker.dart';
 import 'package:pwestado/features/explore/state/explore_controller.dart';
 import 'package:pwestado/features/places/domain/place.dart';
 import 'package:pwestado/features/places/presentation/place_search_bar.dart';
@@ -108,7 +109,11 @@ void main() {
 
     await tester.tap(find.text(BusinessCategory.coffeeShop.label));
     await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'bakery');
+    await tester.pumpAndSettle();
     await tester.tap(find.text(BusinessCategory.bakery.label).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1 km'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('2 km'));
     await tester.pumpAndSettle();
@@ -116,10 +121,13 @@ void main() {
     final state = containerOf(tester).read(exploreControllerProvider);
     expect(state.category, BusinessCategory.bakery);
     expect(state.radius, SearchRadius.km2);
-    final segmented = tester.widget<SegmentedButton<SearchRadius>>(
-      find.byType(SegmentedButton<SearchRadius>),
+    expect(
+      find.descendant(
+        of: find.byType(SearchDistanceField),
+        matching: find.text('2 km'),
+      ),
+      findsOneWidget,
     );
-    expect(segmented.selected, {SearchRadius.km2});
   });
 
   testWidgets('a chosen site shows a readable label, not coordinates', (

@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../app/theme.dart';
 import '../../core/models/business_category.dart';
 
 /// Original PWESTADO category illustration: a tinted tile with the
@@ -49,7 +48,8 @@ class CategoryArt extends StatelessWidget {
 
 /// Hues chosen to feel like each trade (warm coffee, tomato red, sari-sari
 /// teal, laundry blue, wheat gold) while staying calm next to the emerald
-/// brand.
+/// brand. Categories without their own hue use their group's, with their
+/// own glyph, so every category has distinct art without image files.
 @immutable
 class CategoryArtStyle {
   const CategoryArtStyle({
@@ -76,7 +76,7 @@ class CategoryArtStyle {
         Icons.local_laundry_service_rounded,
       ),
       'bakery' => (const Color(0xFFC08A2B), Icons.bakery_dining_rounded),
-      _ => (BrandColors.emerald500, category.icon),
+      _ => (_groupHue(category.group), category.icon),
     };
     final hsl = HSLColor.fromColor(hue);
     if (dark) {
@@ -106,6 +106,17 @@ class CategoryArtStyle {
     );
   }
 }
+
+Color _groupHue(BusinessGroup group) => switch (group) {
+  BusinessGroup.food => const Color(0xFFC4553D),
+  BusinessGroup.everyday => const Color(0xFF1E8C84),
+  BusinessGroup.personalCare => const Color(0xFFB4537E),
+  BusinessGroup.lifestyle => const Color(0xFF7C5CB3),
+  BusinessGroup.tech => const Color(0xFF3F6FC0),
+  BusinessGroup.home => const Color(0xFFB0702E),
+  BusinessGroup.vehicles => const Color(0xFF4F6A85),
+  BusinessGroup.services => const Color(0xFF3F7CC0),
+};
 
 class _ArtPainter extends CustomPainter {
   const _ArtPainter(this.art);

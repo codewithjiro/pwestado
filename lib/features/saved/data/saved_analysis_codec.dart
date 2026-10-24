@@ -373,19 +373,17 @@ DateTime _time(Object? value, String field) =>
 DateTime? _optTime(Object? value) =>
     value is int ? DateTime.fromMillisecondsSinceEpoch(value) : null;
 
-BusinessCategory _category(Object? id) {
-  for (final category in BusinessCategory.all) {
-    if (category.id == id) return category;
-  }
-  throw const FormatException('unknown category');
-}
+/// Category ids are stable across releases: records from the first release
+/// (coffee_shop, restaurant, convenience, laundry, bakery) keep decoding.
+BusinessCategory _category(Object? id) =>
+    (id is String ? BusinessCategory.byId(id) : null) ??
+    (throw const FormatException('unknown category'));
 
-SearchRadius _radius(Object? meters) {
-  for (final radius in SearchRadius.values) {
-    if (radius.meters == meters) return radius;
-  }
-  throw const FormatException('unsupported radius');
-}
+/// Any whole-meter radius in the supported range, so both the first
+/// release's presets (500/1000/2000) and later custom distances decode.
+SearchRadius _radius(Object? meters) =>
+    (meters is int ? SearchRadius.tryMeters(meters) : null) ??
+    (throw const FormatException('unsupported radius'));
 
 DataSource _source(Object? name) =>
     DataSource.values.asNameMap()[name] ??
