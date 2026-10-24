@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
@@ -60,87 +61,120 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     SchedulerBinding.instance.addPostFrameCallback(_measure);
     final picking = ref.watch(mapPickModeProvider);
 
-    return Scaffold(
-      // The keyboard covers the card instead of squeezing the map.
-      resizeToAvoidBottomInset: false,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth >= ExploreScreen._wideBreakpoint;
-          final map = Stack(
-            children: [
-              Positioned.fill(
-                child: ExploreMap(
-                  topInset: _headerBottom,
-                  bottomInset: wide ? _noCover : _cardCover,
-                ),
-              ),
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    key: _headerKey,
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      AppSpacing.sm,
-                      AppSpacing.md,
-                      AppSpacing.sm,
-                    ),
-                    child: const PlaceSearchBar(),
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final palette = context.palette;
+    // No app bar here, so set the status bar icons ourselves: dark icons
+    // over the day map, light icons over the night map.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+          .copyWith(
+            statusBarColor: Colors.transparent,
+            systemNavigationBarColor: palette.surface,
+          ),
+      child: Scaffold(
+        // The keyboard covers the card instead of squeezing the map.
+        resizeToAvoidBottomInset: false,
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final wide = constraints.maxWidth >= ExploreScreen._wideBreakpoint;
+            final map = Stack(
+              children: [
+                Positioned.fill(
+                  child: ExploreMap(
+                    topInset: _headerBottom,
+                    bottomInset: wide ? _noCover : _cardCover,
                   ),
                 ),
-              ),
-              if (!wide && !picking)
+                // Soft scrim so status bar icons stay readable over busy map
+                // areas. Purely visual; taps pass through to the map.
                 Positioned(
+                  top: 0,
                   left: 0,
                   right: 0,
-                  bottom: 0,
-                  child: ConstrainedBox(
-                    key: _cardKey,
-                    constraints: BoxConstraints(
-                      maxHeight:
-                          constraints.maxHeight * ExploreScreen._maxCardShare,
-                    ),
-                    child: const _CardSurface(
-                      child: SingleChildScrollView(
-                        padding: EdgeInsets.fromLTRB(
-                          AppSpacing.lg,
-                          AppSpacing.lg,
-                          AppSpacing.lg,
-                          AppSpacing.md,
+                  height: MediaQuery.paddingOf(context).top + AppSpacing.xl,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            palette.background.withValues(alpha: 0.85),
+                            palette.background.withValues(alpha: 0),
+                          ],
                         ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      key: _headerKey,
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.sm,
+                        AppSpacing.md,
+                        AppSpacing.sm,
+                      ),
+                      child: const PlaceSearchBar(),
+                    ),
+                  ),
+                ),
+                if (!wide && !picking)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: ConstrainedBox(
+                      key: _cardKey,
+                      constraints: BoxConstraints(
+                        maxHeight:
+                            constraints.maxHeight * ExploreScreen._maxCardShare,
+                      ),
+                      child: const _CardSurface(
+                        child: SingleChildScrollView(
+                          padding: EdgeInsets.fromLTRB(
+                            AppSpacing.lg,
+                            AppSpacing.lg,
+                            AppSpacing.lg,
+                            AppSpacing.md,
+                          ),
+                          child: MapSetupCard(),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+
+            if (!wide) return map;
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: map),
+                SizedBox(
+                  width: ExploreScreen._sidePanelWidth,
+                  child: Material(
+                    color: context.palette.surface,
+                    elevation: 2,
+                    child: const SafeArea(
+                      left: false,
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.all(AppSpacing.xl),
                         child: MapSetupCard(),
                       ),
                     ),
                   ),
                 ),
-            ],
-          );
-
-          if (!wide) return map;
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: map),
-              const SizedBox(
-                width: ExploreScreen._sidePanelWidth,
-                child: Material(
-                  color: BrandColors.surfaceRaised,
-                  elevation: 2,
-                  child: SafeArea(
-                    left: false,
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.all(AppSpacing.xl),
-                      child: MapSetupCard(),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -154,14 +188,16 @@ class _CardSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: BrandColors.surfaceRaised,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      decoration: BoxDecoration(
+        color: context.palette.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppRadius.lg),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Color(0x2E0B3D2E),
+            color: context.palette.shadow,
             blurRadius: 24,
-            offset: Offset(0, -4),
+            offset: const Offset(0, -4),
           ),
         ],
       ),

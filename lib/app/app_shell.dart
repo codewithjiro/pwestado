@@ -44,60 +44,31 @@ class AppShell extends ConsumerWidget {
     final savedCount = ref.watch(
       savedAnalysesControllerProvider.select((s) => s.items.length),
     );
-    final theme = Theme.of(context);
+    // Colors, height and label styles come from the theme's
+    // NavigationBarThemeData, so light and dark mode stay consistent.
     return Scaffold(
       body: shell,
-      bottomNavigationBar: NavigationBarTheme(
-        data: NavigationBarThemeData(
-          backgroundColor: BrandColors.surfaceRaised,
-          surfaceTintColor: Colors.transparent,
-          indicatorColor: BrandColors.emerald700,
-          height: 68,
-          labelTextStyle: WidgetStateProperty.resolveWith(
-            (states) => theme.textTheme.labelSmall?.copyWith(
-              letterSpacing: 0.8,
-              fontWeight: states.contains(WidgetState.selected)
-                  ? FontWeight.w800
-                  : FontWeight.w600,
-              color: states.contains(WidgetState.selected)
-                  ? BrandColors.emerald700
-                  : BrandColors.inkMuted,
-            ),
-          ),
-          iconTheme: WidgetStateProperty.resolveWith(
-            (states) => IconThemeData(
-              color: states.contains(WidgetState.selected)
-                  ? BrandColors.mint
-                  : BrandColors.inkMuted,
-            ),
-          ),
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: context.palette.border)),
         ),
-        child: DecoratedBox(
-          decoration: const BoxDecoration(
-            border: Border(top: BorderSide(color: BrandColors.outlineSoft)),
+        child: NavigationBar(
+          selectedIndex: shell.currentIndex,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          onDestinationSelected: (index) => shell.goBranch(
+            index,
+            // Tapping the current tab again returns to its first page.
+            initialLocation: index == shell.currentIndex,
           ),
-          child: NavigationBar(
-            selectedIndex: shell.currentIndex,
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            onDestinationSelected: (index) => shell.goBranch(
-              index,
-              // Tapping the current tab again returns to its first page.
-              initialLocation: index == shell.currentIndex,
-            ),
-            destinations: [
-              for (final tab in AppTab.values)
-                NavigationDestination(
-                  tooltip: tab.label,
-                  label: tab.label,
-                  icon: _badged(tab, savedCount, Icon(tab.icon)),
-                  selectedIcon: _badged(
-                    tab,
-                    savedCount,
-                    Icon(tab.selectedIcon),
-                  ),
-                ),
-            ],
-          ),
+          destinations: [
+            for (final tab in AppTab.values)
+              NavigationDestination(
+                tooltip: tab.label,
+                label: tab.label,
+                icon: _badged(tab, savedCount, Icon(tab.icon)),
+                selectedIcon: _badged(tab, savedCount, Icon(tab.selectedIcon)),
+              ),
+          ],
         ),
       ),
     );
@@ -105,11 +76,6 @@ class AppShell extends ConsumerWidget {
 
   static Widget _badged(AppTab tab, int savedCount, Widget icon) {
     if (tab != AppTab.saved || savedCount == 0) return icon;
-    return Badge(
-      label: Text('$savedCount'),
-      backgroundColor: BrandColors.competitorOrange,
-      textColor: Colors.white,
-      child: icon,
-    );
+    return Badge(label: Text('$savedCount'), child: icon);
   }
 }

@@ -24,7 +24,11 @@ class SelectedSiteCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final explore = ref.watch(exploreControllerProvider);
+    // Only the two settings shown here; GPS status and other explore state
+    // changes don't rebuild the card.
+    final (category, radius) = ref.watch(
+      exploreControllerProvider.select((s) => (s.category, s.radius)),
+    );
     return AppCard(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -43,7 +47,7 @@ class SelectedSiteCard extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: BrandColors.emerald700,
+                    color: context.palette.brand,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
                   ),
@@ -59,9 +63,9 @@ class SelectedSiteCard extends ConsumerWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 2, right: AppSpacing.md),
-                child: Icon(Icons.place, color: BrandColors.emerald700),
+              Padding(
+                padding: const EdgeInsets.only(top: 2, right: AppSpacing.md),
+                child: Icon(Icons.place, color: context.palette.brand),
               ),
               Expanded(
                 child: SitePlaceLabel(
@@ -76,8 +80,8 @@ class SelectedSiteCard extends ConsumerWidget {
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.xs,
             children: [
-              _Tag(icon: explore.category.icon, text: explore.category.label),
-              _Tag(icon: Icons.radar, text: 'Within ${explore.radius.label}'),
+              _Tag(icon: category.icon, text: category.label),
+              _Tag(icon: Icons.radar, text: 'Within ${radius.label}'),
             ],
           ),
           SiteTechnicalDetails(site: site),
@@ -101,14 +105,14 @@ class _Tag extends StatelessWidget {
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: BrandColors.mintWash,
+        color: context.palette.accentWash,
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: BrandColors.mintSoft),
+        border: Border.all(color: context.palette.accentContainer),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: BrandColors.emerald700),
+          Icon(icon, size: 16, color: context.palette.brand),
           const SizedBox(width: AppSpacing.xs),
           Text(text, style: Theme.of(context).textTheme.labelMedium),
         ],

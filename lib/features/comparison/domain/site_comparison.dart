@@ -149,8 +149,8 @@ SiteComparison compareSites({
       ComparisonBlocker(
         ComparisonBlockerKind.settingsMismatch,
         'The sites were analyzed with different settings '
-        '(${settingsLabel(qa)} vs ${settingsLabel(qb)}). Re-analyze both '
-        'with the same business type and radius.',
+        '(${settingsLabel(qa)} vs ${settingsLabel(qb)}). Update both '
+        'locations using the same search settings.',
       ),
     );
   }
@@ -164,7 +164,7 @@ SiteComparison compareSites({
       ComparisonBlocker(
         ComparisonBlockerKind.settingsChanged,
         'Search settings changed to ${category.label} · ${radius.label}. '
-        '${outdated.join(' and ')} must be re-analyzed with these settings.',
+        'Update ${outdated.join(' and ')} using the same search settings.',
       ),
     );
   }
@@ -175,7 +175,7 @@ SiteComparison compareSites({
       ComparisonBlocker(
         ComparisonBlockerKind.mixedSources,
         '${sample.title} uses SAMPLE DEMO DATA and ${sample.other.title} uses '
-        'OpenStreetMap data. Fictional and real evidence cannot be compared.',
+        'real OpenStreetMap data. Sample and real results can’t be compared.',
       ),
     );
   }
@@ -189,23 +189,23 @@ SiteComparison compareSites({
       ComparisonBlocker(
         ComparisonBlockerKind.insufficientData,
         '${insufficient.join(' and ')} ${insufficient.length == 1 ? 'has' : 'have'} '
-        'insufficient data (no total score). Retry the failed evidence '
-        'request.',
+        'no total score yet because some information couldn’t be retrieved. '
+        'Try updating it again.',
       ),
     );
   }
 
   if (a.score.lowConfidence || b.score.lowConfidence) {
     warnings.add(
-      'Low confidence: OpenStreetMap coverage is sparse or incomplete for at '
-      'least one site, so a score difference may reflect missing map data.',
+      'Some nearby businesses may not be listed on the map for at least one '
+      'location, so a score difference may come from missing map data.',
     );
   }
   for (final slot in CompareSlot.values) {
     if (saved.contains(slot)) {
       warnings.add(
-        '${slot.title} is a saved historical analysis. Its evidence is from '
-        'when it was retrieved, not current business data.',
+        '${slot.title} is a saved analysis. Its information is from when it '
+        'was saved, not today.',
       );
     }
   }
@@ -215,7 +215,7 @@ SiteComparison compareSites({
     if (age > ComparisonRules.staleAfter) {
       warnings.add(
         '${slot.title} evidence was retrieved ${formatAge(age)} ago. '
-        'Refresh it for current OpenStreetMap data.',
+        'Update it for the latest OpenStreetMap data.',
       );
     }
   }

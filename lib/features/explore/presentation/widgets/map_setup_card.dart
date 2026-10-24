@@ -8,6 +8,7 @@ import '../../../../core/config/mapbox_config.dart';
 import '../../../../core/models/business_category.dart';
 import '../../../../core/models/search_radius.dart';
 import '../../../../core/models/selected_site.dart';
+import '../../../../shared/widgets/category_art.dart';
 import '../../../../shared/widgets/surfaces.dart';
 import '../../../discovery/presentation/competitor_summary.dart';
 import '../../../discovery/state/competitor_controller.dart';
@@ -16,18 +17,18 @@ import '../../state/explore_controller.dart';
 
 /// The map tab's compact controls, in the order a first-time user needs
 /// them: where (location), what (business type), how far (radius), then
-/// "Find nearby competitors" and, once found, the way to the score.
+/// "Find nearby businesses" and, once found, the way to the score.
 class MapSetupCard extends ConsumerWidget {
   const MapSetupCard({super.key});
 
-  static const findLabel = 'Find nearby competitors';
+  static const findLabel = 'Find nearby businesses';
   static const noSiteTitle = 'Choose a location';
   static const noSiteHint =
       'Search above, use your location, or pick a spot on the map.';
-  static const needSiteReason = 'Choose a location first to enable the search.';
+  static const needSiteReason = 'Choose a location first, then search.';
   static const useMyLocation = 'Use my location';
   static const pickOnMap = 'Pick on map';
-  static const openAnalyze = 'See the score in ANALYZE';
+  static const openAnalyze = 'See the suitability score';
 
   /// Below this content width the radius buttons move under the business
   /// type instead of squeezing it.
@@ -132,8 +133,8 @@ class MapSetupCard extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             state.canSearch
-                ? 'Looks up mapped ${state.category.label} records within '
-                      '${state.radius.label} on OpenStreetMap.'
+                ? 'Shows ${state.category.label.toLowerCase()} businesses '
+                      'listed on OpenStreetMap within ${state.radius.label}.'
                 : needSiteReason,
             textAlign: TextAlign.center,
             style: mutedSmall(context),
@@ -170,11 +171,13 @@ class _SiteRow extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: site != null ? BrandColors.emerald700 : BrandColors.mintWash,
+            color: site != null
+                ? context.palette.brand
+                : context.palette.accentWash,
             shape: BoxShape.circle,
             border: site != null
                 ? null
-                : Border.all(color: BrandColors.mintSoft),
+                : Border.all(color: context.palette.accentContainer),
           ),
           child: Icon(
             site == null
@@ -182,7 +185,9 @@ class _SiteRow extends StatelessWidget {
                 : site.source.isGps
                 ? Icons.my_location
                 : Icons.place,
-            color: site != null ? BrandColors.mint : BrandColors.emerald700,
+            color: site != null
+                ? context.palette.onBrandFill
+                : context.palette.brand,
             size: 20,
           ),
         ),
@@ -209,7 +214,7 @@ class _SiteRow extends StatelessWidget {
           IconButton(
             tooltip: 'Clear location',
             icon: const Icon(Icons.close),
-            color: BrandColors.inkMuted,
+            color: context.palette.textSecondary,
             onPressed: onClear,
           ),
       ],
@@ -245,11 +250,7 @@ class _CategoryMenu extends StatelessWidget {
                 value: category,
                 child: Row(
                   children: [
-                    Icon(
-                      category.icon,
-                      size: 18,
-                      color: BrandColors.emerald700,
-                    ),
+                    CategoryArt(category: category, size: 26),
                     const SizedBox(width: AppSpacing.sm),
                     Flexible(
                       child: Text(

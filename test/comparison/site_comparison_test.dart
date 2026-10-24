@@ -180,7 +180,10 @@ void main() {
         context: contextFor(query, complementary: 0),
       );
       expect(b.score.lowConfidence, isTrue);
-      expect(compare(a, b).warnings.single, contains('Low confidence'));
+      expect(
+        compare(a, b).warnings.single,
+        contains('may not be listed on the map'),
+      );
     });
   });
 }

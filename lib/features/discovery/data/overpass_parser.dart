@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../core/utils/geo.dart';
+import '../domain/business_image.dart';
 import '../domain/competitors.dart';
 
 @immutable
@@ -109,6 +110,7 @@ NearbyBusiness? _parseElement(
     longitude: lon!,
     distanceMeters: distanceMeters(originLatitude, originLongitude, lat, lon),
     details: _details(tags),
+    imageRefs: BusinessImageRefs.fromTags(tags),
   );
 }
 

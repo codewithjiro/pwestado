@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../core/models/business_category.dart';
 import '../../../core/models/search_radius.dart';
 import '../../../core/models/selected_site.dart';
+import 'business_image.dart';
 
 /// Where a set of nearby business records came from.
 enum DataSource {
@@ -74,6 +75,7 @@ class NearbyBusiness {
     required this.longitude,
     required this.distanceMeters,
     this.details = const {},
+    this.imageRefs,
   });
 
   static const unnamedLabel = 'Unnamed mapped business';
@@ -94,6 +96,10 @@ class NearbyBusiness {
   /// Optional human-readable tags (address, opening hours, ...), in display
   /// order. Only values present in the source record.
   final Map<String, String> details;
+
+  /// Wikimedia/Wikidata image references from the record, if any. Not
+  /// persisted with saved analyses (saved records show category art).
+  final BusinessImageRefs? imageRefs;
 
   /// Stable identity used for de-duplication: `type:id`.
   String get key => '$osmType:$osmId';

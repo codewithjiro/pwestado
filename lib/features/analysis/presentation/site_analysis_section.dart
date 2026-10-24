@@ -23,18 +23,22 @@ import '../state/analysis_controller.dart';
 class SiteAnalysisSection extends ConsumerWidget {
   const SiteAnalysisSection({super.key});
 
-  static const title = 'Location suitability';
-  static const insufficientData = 'Insufficient data';
-  static const sampleLabel = 'Sample heuristic result';
-  static const analyzeLabel = 'Analyze this site';
+  static const title = 'Location suitability score';
+  static const subtitle = 'Based on limited map data';
+  static const insufficientData = 'Not enough data yet';
+  static const insufficientMessage =
+      'We couldn’t get enough information to score this location yet.';
+  static const sampleLabel = 'Sample result · not real data';
+  static const analyzeLabel = 'Calculate suitability score';
+  static const lowConfidenceLabel = 'May be incomplete';
   static const disclaimer =
-      'A preliminary heuristic from mapped OpenStreetMap evidence. It is not '
-      'a prediction of sales, customer demand, foot traffic, profit, or '
+      'This score is based on limited mapped evidence from OpenStreetMap. It '
+      'does not predict sales, customer demand, foot traffic, profit or '
       'business success.';
   static const assumptionsNote =
-      'These thresholds are developer assumptions for this prototype, not '
-      'research-backed values. Compare sites only with the same business '
-      'type and radius.';
+      'These thresholds are simple starting assumptions for this prototype, '
+      'not research-backed values. Only compare locations that use the same '
+      'business type and radius.';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -84,9 +88,9 @@ class _Intro extends StatelessWidget {
           const _Heading(),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Adds one OpenStreetMap request for complementary places and '
-            'mapped roads near this site, then scores it: 40% competitor '
-            'proximity, 30% complementary places, 30% road-access proxy.',
+            'We’ll check helpful places and roads near this spot on '
+            'OpenStreetMap, then combine them with the competitors found: '
+            '40% competition, 30% helpful places nearby, 30% mapped roads.',
             style: _muted(context),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -110,7 +114,7 @@ class _WeightStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.labelSmall?.copyWith(
-      color: BrandColors.emerald900,
+      color: context.palette.heading,
       fontWeight: FontWeight.w700,
     );
     return ExcludeSemantics(
@@ -124,7 +128,7 @@ class _WeightStrip extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: _criterionTint(criterion),
+                  color: _criterionTint(context, criterion),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -156,23 +160,23 @@ class _Loading extends StatelessWidget {
           const _Heading(),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Fetching complementary places and nearby roads…',
+            'Checking helpful places and roads nearby…',
             style: Theme.of(context).textTheme.titleSmall,
           ),
           const SizedBox(height: AppSpacing.sm),
           ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.pill),
-            child: const LinearProgressIndicator(
+            child: LinearProgressIndicator(
               minHeight: 6,
-              backgroundColor: BrandColors.mintSoft,
+              backgroundColor: context.palette.accentContainer,
               semanticsLabel: 'Fetching scoring evidence',
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
           const ElapsedWait(),
           Text(
-            'One more Overpass request. Shared servers can take up to a '
-            'minute to answer.',
+            'This uses a free public map server, so it can take up to a '
+            'minute. Thanks for waiting!',
             style: _muted(context),
           ),
           Align(
@@ -199,8 +203,9 @@ class _CompetitorsMissing extends StatelessWidget {
           const _TotalLine(score: null),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'The competitor search did not return data, so no score is '
-            'calculated. Try the search again or use sample demo data.',
+            'The business search didn’t finish, so there’s nothing to score '
+            'yet. Try the search again, or use sample demo data to see how it '
+            'works.',
             style: _muted(context),
           ),
         ],
@@ -300,10 +305,9 @@ class ScoreBreakdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final score = analysis.score;
     final query = analysis.competitors.query;
-    final formula = score.formula;
+    final total = score.total;
 
     return _Panel(
       child: Column(
@@ -315,7 +319,7 @@ class ScoreBreakdown extends StatelessWidget {
                     tooltip: 'Refresh scoring evidence',
                     onPressed: onRefresh,
                     icon: const Icon(Icons.refresh),
-                    color: BrandColors.emerald700,
+                    color: context.palette.brand,
                   )
                 : null,
           ),
@@ -329,6 +333,10 @@ class ScoreBreakdown extends StatelessWidget {
             lowConfidence: score.lowConfidence,
             settings: '${query.category.label} · ${query.radius.label}',
           ),
+          if (total != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            ScoreInterpretation(total: total),
+          ],
           const SizedBox(height: AppSpacing.md),
           _ContributionBar(score: score),
           const SizedBox(height: AppSpacing.md),
@@ -350,31 +358,47 @@ class ScoreBreakdown extends StatelessWidget {
             _CriterionRow(result: criterion),
             const SizedBox(height: AppSpacing.lg),
           ],
-          if (formula != null) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-              decoration: BoxDecoration(
-                color: BrandColors.offWhite,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Text(
-                'Total = $formula',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: BrandColors.emerald900,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-          ],
           _Rules(analysis: analysis),
           const Divider(height: AppSpacing.xl),
           _Sources(analysis: analysis, onRetry: onRefresh),
         ],
       ),
+    );
+  }
+}
+
+/// A plain-language reading of the total. The bands are as much an
+/// assumption as the thresholds, so the text always points back to the
+/// evidence and to checking the area in person.
+class ScoreInterpretation extends StatelessWidget {
+  const ScoreInterpretation({super.key, required this.total});
+
+  final double total;
+
+  static String headline(double total) => total >= 70
+      ? 'Promising, based on what’s on the map'
+      : total >= 45
+      ? 'Mixed signals on the map'
+      : 'Challenging, based on what’s on the map';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          headline(total),
+          style: theme.textTheme.titleSmall?.copyWith(
+            color: context.palette.brand,
+          ),
+        ),
+        Text(
+          'Use it as a starting point. Visit the area at different times '
+          'before deciding.',
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
     );
   }
 }
@@ -400,12 +424,21 @@ class _TotalLine extends StatelessWidget {
           const _Gauge(value: null),
           const SizedBox(width: AppSpacing.lg),
           Expanded(
-            child: Text(
-              SiteAnalysisSection.insufficientData,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                color: BrandColors.inkMuted,
-                fontWeight: FontWeight.w700,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  SiteAnalysisSection.insufficientData,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: context.palette.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  SiteAnalysisSection.insufficientMessage,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
             ),
           ),
         ],
@@ -426,9 +459,9 @@ class _TotalLine extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'HEURISTIC SCORE',
+                        'SUITABILITY SCORE',
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: BrandColors.emerald700,
+                          color: context.palette.brand,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.2,
                         ),
@@ -439,7 +472,7 @@ class _TotalLine extends StatelessWidget {
                             TextSpan(
                               text: '${score.round()}',
                               style: theme.textTheme.displaySmall?.copyWith(
-                                color: BrandColors.emerald900,
+                                color: context.palette.heading,
                                 fontWeight: FontWeight.w800,
                                 height: 1.1,
                               ),
@@ -447,7 +480,7 @@ class _TotalLine extends StatelessWidget {
                             TextSpan(
                               text: ' / 100',
                               style: theme.textTheme.titleMedium?.copyWith(
-                                color: BrandColors.inkMuted,
+                                color: context.palette.textSecondary,
                               ),
                             ),
                           ],
@@ -461,10 +494,9 @@ class _TotalLine extends StatelessWidget {
                 if (lowConfidence) ...[
                   const SizedBox(height: AppSpacing.xs),
                   const StatusPill(
-                    label: 'Low confidence',
+                    label: SiteAnalysisSection.lowConfidenceLabel,
                     icon: Icons.warning_amber_rounded,
-                    background: BrandColors.amberWash,
-                    foreground: BrandColors.amberInk,
+                    tone: Tone.warning,
                   ),
                 ],
               ],
@@ -499,17 +531,17 @@ class _Gauge extends StatelessWidget {
               strokeWidth: 9,
               strokeCap: StrokeCap.round,
               backgroundColor: value == null
-                  ? BrandColors.outlineSoft
-                  : BrandColors.mintSoft,
-              color: BrandColors.emerald700,
+                  ? context.palette.border
+                  : context.palette.accentContainer,
+              color: context.palette.brand,
             ),
           ),
           Center(
             child: Icon(
               value == null ? Icons.help_outline : Icons.place_rounded,
               color: value == null
-                  ? BrandColors.inkMuted
-                  : BrandColors.emerald700,
+                  ? context.palette.textSecondary
+                  : context.palette.brand,
               size: 26,
             ),
           ),
@@ -528,7 +560,7 @@ class _ContributionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final legend = Theme.of(context).textTheme.labelSmall?.copyWith(
-      color: BrandColors.inkMuted,
+      color: context.palette.textSecondary,
       fontWeight: FontWeight.w600,
     );
     return ExcludeSemantics(
@@ -548,12 +580,14 @@ class _ContributionBar extends StatelessWidget {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          ColoredBox(color: _criterionTint(result.criterion)),
+                          ColoredBox(
+                            color: _criterionTint(context, result.criterion),
+                          ),
                           FractionallySizedBox(
                             alignment: Alignment.centerLeft,
                             widthFactor: (result.score ?? 0) / 100,
                             child: ColoredBox(
-                              color: _criterionColor(result.criterion),
+                              color: _criterionColor(context, result.criterion),
                             ),
                           ),
                         ],
@@ -608,7 +642,7 @@ class _CriterionRow extends StatelessWidget {
             Icon(
               _criterionIcon(criterion),
               size: 20,
-              color: _criterionColor(criterion),
+              color: _criterionColor(context, criterion),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
@@ -621,8 +655,8 @@ class _CriterionRow extends StatelessWidget {
               score == null ? 'No data' : '${score.round()} / 100',
               style: theme.textTheme.labelLarge?.copyWith(
                 color: score == null
-                    ? BrandColors.inkMuted
-                    : BrandColors.emerald700,
+                    ? context.palette.textSecondary
+                    : context.palette.brand,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -638,8 +672,8 @@ class _CriterionRow extends StatelessWidget {
             child: LinearProgressIndicator(
               value: (score ?? 0) / 100,
               minHeight: 8,
-              backgroundColor: _criterionTint(criterion),
-              color: _criterionColor(criterion),
+              backgroundColor: _criterionTint(context, criterion),
+              color: _criterionColor(context, criterion),
               semanticsLabel: '${criterion.label} score',
               semanticsValue: '${(score ?? 0).round()}',
             ),
@@ -653,7 +687,7 @@ class _CriterionRow extends StatelessWidget {
                     '${criterion.weightPercent} possible points.',
           style: theme.textTheme.bodySmall?.copyWith(
             fontWeight: FontWeight.w700,
-            color: BrandColors.emerald900,
+            color: context.palette.heading,
           ),
         ),
         Text(result.evidence, style: theme.textTheme.bodySmall),
@@ -672,13 +706,15 @@ class _Warnings extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = Theme.of(
       context,
-    ).textTheme.bodySmall?.copyWith(color: SampleBanner.foreground);
+    ).textTheme.bodySmall?.copyWith(color: context.palette.sample);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: SampleBanner.background.withValues(alpha: 0.6),
+        color: context.palette.sampleContainer.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: BrandColors.amberEdge.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: context.palette.warningBorder.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -689,10 +725,10 @@ class _Warnings extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.info_outline,
                     size: 16,
-                    color: SampleBanner.foreground,
+                    color: context.palette.sample,
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(child: Text(warning, style: style)),
@@ -722,19 +758,40 @@ class _Rules extends StatelessWidget {
         tilePadding: EdgeInsets.zero,
         childrenPadding: const EdgeInsets.only(bottom: AppSpacing.sm),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
-        leading: const Icon(Icons.functions, color: BrandColors.emerald700),
+        leading: Icon(Icons.functions, color: context.palette.brand),
         title: Text(
           'How the score is calculated',
           style: theme.textTheme.titleSmall?.copyWith(
-            color: BrandColors.emerald700,
+            color: context.palette.brand,
           ),
         ),
         children: [
           Text(
-            'Total = 0.40 × competitor + 0.30 × complementary + 0.30 × road '
-            'proxy. Each criterion is scaled 0 to 100.',
+            'Total = 0.40 × competition + 0.30 × helpful places + 0.30 × '
+            'mapped roads. Each part is scored from 0 to 100.',
             style: theme.textTheme.bodySmall,
           ),
+          if (analysis.score.formula != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: context.palette.surfaceMuted,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Text(
+                'Total = ${analysis.score.formula}',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: context.palette.heading,
+                  fontFeatures: AppFonts.tabular,
+                ),
+              ),
+            ),
+          ],
           for (final result in analysis.score.criteria) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(result.criterion.label, style: theme.textTheme.labelLarge),
@@ -880,7 +937,7 @@ class _Heading extends StatelessWidget {
     return SectionHeader(
       icon: Icons.insights_outlined,
       title: SiteAnalysisSection.title,
-      subtitle: 'Weighted 40 / 30 / 30 heuristic',
+      subtitle: SiteAnalysisSection.subtitle,
       trailing: trailing,
     );
   }
@@ -896,8 +953,7 @@ class _SampleTag extends StatelessWidget {
       child: StatusPill(
         label: SiteAnalysisSection.sampleLabel,
         icon: Icons.science_outlined,
-        background: SampleBanner.background,
-        foreground: SampleBanner.foreground,
+        tone: Tone.sample,
       ),
     );
   }
@@ -914,7 +970,7 @@ class _Panel extends StatelessWidget {
 
 String _shortLabel(Criterion criterion) => switch (criterion) {
   Criterion.competitorProximity => 'Competition',
-  Criterion.complementary => 'Complements',
+  Criterion.complementary => 'Places',
   Criterion.roadAccess => 'Roads',
 };
 
@@ -924,16 +980,11 @@ IconData _criterionIcon(Criterion criterion) => switch (criterion) {
   Criterion.roadAccess => Icons.add_road_outlined,
 };
 
-Color _criterionColor(Criterion criterion) => switch (criterion) {
-  Criterion.competitorProximity => BrandColors.emerald900,
-  Criterion.complementary => BrandColors.emerald500,
-  Criterion.roadAccess => BrandColors.emerald300,
-};
+/// Criterion colors come from the palette, in 40/30/30 order.
+Color _criterionColor(BuildContext context, Criterion criterion) =>
+    context.palette.criterion[criterion.index];
 
-Color _criterionTint(Criterion criterion) => switch (criterion) {
-  Criterion.competitorProximity => const Color(0xFFD3E6DE),
-  Criterion.complementary => BrandColors.mintSoft,
-  Criterion.roadAccess => BrandColors.mintWash,
-};
+Color _criterionTint(BuildContext context, Criterion criterion) =>
+    context.palette.criterionTint[criterion.index];
 
 TextStyle? _muted(BuildContext context) => mutedSmall(context);

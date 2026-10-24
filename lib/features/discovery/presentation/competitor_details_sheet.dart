@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme.dart';
 import '../../../core/utils/geo.dart';
 import '../domain/competitors.dart';
+import 'business_thumbnail.dart';
 import 'source_labels.dart';
 
 /// Details of one mapped business: only what the source record contains.
@@ -13,6 +14,7 @@ Future<void> showCompetitorDetailsSheet(
 }) {
   return showModalBottomSheet<void>(
     context: context,
+    useRootNavigator: true,
     isScrollControlled: true,
     builder: (context) =>
         _CompetitorDetails(business: business, result: result),
@@ -29,7 +31,7 @@ class _CompetitorDetails extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final muted = theme.textTheme.bodySmall?.copyWith(
-      color: BrandColors.inkMuted,
+      color: context.palette.textSecondary,
     );
     final category = result.query.category;
     return SafeArea(
@@ -54,7 +56,11 @@ class _CompetitorDetails extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CompetitorDot(size: 40),
+                  BusinessThumbnail(
+                    business: business,
+                    category: category,
+                    size: 56,
+                  ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
@@ -88,6 +94,7 @@ class _CompetitorDetails extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: AppSpacing.lg),
+              BusinessImageCredit(business: business),
               for (final MapEntry(:key, :value) in business.details.entries)
                 _DetailRow(label: key, value: value),
               _DetailRow(
@@ -98,7 +105,7 @@ class _CompetitorDetails extends StatelessWidget {
               ),
               if (!business.isSample)
                 _DetailRow(
-                  label: 'OSM record',
+                  label: 'Map record',
                   value: '${business.osmType} ${business.osmId}',
                 ),
               const SizedBox(height: AppSpacing.md),
@@ -108,7 +115,7 @@ class _CompetitorDetails extends StatelessWidget {
                 business.isSample
                     ? 'Shown only to demonstrate the app when live data is '
                           'unavailable.'
-                    : 'A mapped record is not proof the business is open '
+                    : 'Being on the map doesn’t prove the business is open '
                           'today or how busy it is.',
                 style: muted,
               ),
@@ -139,7 +146,7 @@ class _DetailRow extends StatelessWidget {
             child: Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: BrandColors.inkMuted,
+                color: context.palette.textSecondary,
               ),
             ),
           ),

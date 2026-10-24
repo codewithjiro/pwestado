@@ -120,7 +120,7 @@ class MapProblemOverlay extends StatelessWidget {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 380),
                 child: Material(
-                  color: BrandColors.surfaceRaised,
+                  color: context.palette.surface,
                   elevation: 2,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                   child: Padding(
@@ -132,7 +132,7 @@ class MapProblemOverlay extends StatelessWidget {
                           problem.icon,
                           size: 40,
                           color: problem == MapLoadProblem.slow
-                              ? BrandColors.emerald700
+                              ? context.palette.brand
                               : theme.colorScheme.error,
                         ),
                         const SizedBox(height: AppSpacing.md),

@@ -57,10 +57,10 @@ class _PlaceSearchBarState extends ConsumerState<PlaceSearchBar> {
         DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            boxShadow: AppShadows.floating,
+            boxShadow: context.palette.floatingShadow,
           ),
           child: Material(
-            color: BrandColors.surfaceRaised,
+            color: context.palette.surface,
             borderRadius: BorderRadius.circular(AppRadius.lg),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -96,14 +96,14 @@ class _PlaceSearchBarState extends ConsumerState<PlaceSearchBar> {
                     IconButton(
                       tooltip: 'Clear search',
                       icon: const Icon(Icons.close),
-                      color: BrandColors.inkMuted,
+                      color: context.palette.textSecondary,
                       onPressed: _clear,
                     ),
                   IconButton.filled(
                     tooltip: 'Search',
                     style: IconButton.styleFrom(
-                      backgroundColor: BrandColors.emerald700,
-                      foregroundColor: BrandColors.mint,
+                      backgroundColor: context.palette.brand,
+                      foregroundColor: context.palette.onBrandFill,
                       minimumSize: const Size(48, 48),
                     ),
                     icon: const Icon(Icons.search),
@@ -150,6 +150,7 @@ class _LogoButton extends StatelessWidget {
             ),
             child: const Icon(
               Icons.place_rounded,
+              // On the fixed emerald gradient in both themes.
               color: BrandColors.mint,
               size: 26,
             ),
@@ -175,7 +176,7 @@ class _Results extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final muted = theme.textTheme.bodySmall?.copyWith(
-      color: BrandColors.inkMuted,
+      color: context.palette.textSecondary,
     );
 
     final Widget body = switch (state.status) {
@@ -223,7 +224,7 @@ class _Results extends StatelessWidget {
             ListTile(
               leading: Icon(
                 place.isStreetLevel ? Icons.signpost_outlined : Icons.place,
-                color: BrandColors.emerald700,
+                color: context.palette.brand,
               ),
               title: Text(place.name),
               subtitle: place.placeFormatted == null
@@ -254,7 +255,7 @@ class _Results extends StatelessWidget {
         maxHeight: MediaQuery.sizeOf(context).height * 0.45,
       ),
       child: Material(
-        color: BrandColors.surfaceRaised,
+        color: context.palette.surface,
         elevation: 4,
         borderRadius: BorderRadius.circular(AppRadius.md),
         clipBehavior: Clip.antiAlias,

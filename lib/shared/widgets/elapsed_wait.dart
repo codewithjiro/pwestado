@@ -36,7 +36,7 @@ class _ElapsedWaitState extends State<ElapsedWait> {
       'Waiting ${_stopwatch.elapsed.inSeconds} s',
       style: Theme.of(
         context,
-      ).textTheme.labelMedium?.copyWith(color: BrandColors.inkMuted),
+      ).textTheme.labelMedium?.copyWith(color: context.palette.textSecondary),
     );
   }
 }

@@ -16,7 +16,7 @@ class CompetitorDot extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: BrandColors.competitorOrange,
+        color: context.palette.competitor,
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
         boxShadow: const [
@@ -46,18 +46,18 @@ class SourceBadge extends StatelessWidget {
       IconData icon,
     ) = switch (source) {
       DataSource.live => (
-        BrandColors.emerald700,
-        Colors.white,
+        context.palette.brandFill,
+        Theme.of(context).colorScheme.onPrimary,
         Icons.wifi_tethering,
       ),
       DataSource.cached => (
-        BrandColors.mintSoft,
-        BrandColors.emerald900,
+        context.palette.accentContainer,
+        context.palette.onAccentContainer,
         Icons.history,
       ),
       DataSource.sample => (
-        SampleBanner.background,
-        SampleBanner.foreground,
+        context.palette.sampleContainer,
+        context.palette.sample,
         Icons.science_outlined,
       ),
     };
@@ -99,16 +99,14 @@ class SourceLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = Theme.of(
       context,
-    ).textTheme.bodySmall?.copyWith(color: BrandColors.inkMuted);
+    ).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary);
     final when = formatFetchedAt(context, result.fetchedAt);
     final text = switch (result.source) {
-      DataSource.live =>
-        'Retrieved live $when · OpenStreetMap via Overpass API',
+      DataSource.live => 'Updated $when from OpenStreetMap',
       DataSource.cached =>
-        'Cached copy of a response retrieved $when '
-            '(${_age(result.fetchedAt)}) · OpenStreetMap via Overpass API',
-      DataSource.sample =>
-        'Bundled sample created $when · not from OpenStreetMap',
+        'Saved copy from $when (${_age(result.fetchedAt)}) · '
+            'OpenStreetMap',
+      DataSource.sample => 'Sample data created $when · not from OpenStreetMap',
     };
     return Text(text, style: style);
   }
@@ -135,8 +133,6 @@ String formatFetchedAt(BuildContext context, DateTime time) {
 class SampleBanner extends StatelessWidget {
   const SampleBanner({super.key});
 
-  static const background = Color(0xFFFFF1C2);
-  static const foreground = Color(0xFF6B4A00);
   static const title = 'SAMPLE DEMO DATA';
 
   @override
@@ -146,14 +142,14 @@ class SampleBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: background,
+        color: context.palette.sampleContainer,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: BrandColors.amberEdge, width: 1.5),
+        border: Border.all(color: context.palette.sampleBorder, width: 1.5),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.science_outlined, color: foreground),
+          Icon(Icons.science_outlined, color: context.palette.sample),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
@@ -162,7 +158,7 @@ class SampleBanner extends StatelessWidget {
                 Text(
                   title,
                   style: theme.textTheme.labelLarge?.copyWith(
-                    color: foreground,
+                    color: context.palette.sample,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1,
                   ),
@@ -170,7 +166,9 @@ class SampleBanner extends StatelessWidget {
                 Text(
                   'Fictional places for demonstrating the app. Not from '
                   'OpenStreetMap and not real businesses.',
-                  style: theme.textTheme.bodySmall?.copyWith(color: foreground),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: context.palette.sample,
+                  ),
                 ),
               ],
             ),

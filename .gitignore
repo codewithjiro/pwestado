@@ -67,3 +67,8 @@ secrets/
 # Local SQLite files (saved analyses live on the device, never in git)
 *.db
 *.db-journal
+
+# Backend tooling (never commit local secrets or build state)
+backend/**/node_modules/
+backend/**/.wrangler/
+backend/**/.dev.vars

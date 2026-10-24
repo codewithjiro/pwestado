@@ -62,26 +62,26 @@ class MapUnavailable extends StatelessWidget {
                 constraints: const BoxConstraints(maxWidth: 360),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: BrandColors.surfaceRaised,
+                    color: context.palette.surface,
                     borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(color: BrandColors.outline),
+                    border: Border.all(color: context.palette.borderStrong),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.map_outlined,
                           size: 36,
-                          color: BrandColors.emerald700,
+                          color: context.palette.brand,
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
                           title,
                           textAlign: TextAlign.center,
                           style: theme.textTheme.titleMedium?.copyWith(
-                            color: BrandColors.emerald900,
+                            color: context.palette.heading,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xs),
@@ -89,7 +89,7 @@ class MapUnavailable extends StatelessWidget {
                           _reason,
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: BrandColors.inkMuted,
+                            color: context.palette.textSecondary,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.sm),
@@ -97,7 +97,7 @@ class MapUnavailable extends StatelessWidget {
                           'Use my location still works to set a site.',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: BrandColors.emerald700,
+                            color: context.palette.brand,
                             fontWeight: FontWeight.w600,
                           ),
                         ),

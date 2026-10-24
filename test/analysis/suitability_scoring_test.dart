@@ -136,7 +136,10 @@ void main() {
         expect(score.total, isNull);
         expect(score.hasTotal, isFalse);
         expect(score.formula, isNull);
-        expect(score.warnings.first, startsWith('Insufficient data'));
+        expect(
+          score.warnings.first,
+          startsWith('We couldn’t get enough information'),
+        );
       }
     });
 
@@ -168,8 +171,8 @@ void main() {
       expect(
         score.warnings,
         containsAll([
-          contains('Low confidence: only 0 mapped places'),
-          contains('Roads may exist but be unmapped'),
+          contains('Only 0 places were found'),
+          contains('Roads may exist but not be on the map yet'),
         ]),
       );
     });
@@ -188,7 +191,7 @@ void main() {
         ),
       );
       expect(score.lowConfidence, isTrue);
-      expect(score.warnings.single, contains('only 4 mapped places'));
+      expect(score.warnings.single, contains('Only 4 places were found'));
     });
 
     test('truncated results are flagged', () {
@@ -204,7 +207,7 @@ void main() {
         ),
       );
       expect(score.lowConfidence, isTrue);
-      expect(score.warnings.single, contains('server limit'));
+      expect(score.warnings.single, contains('maximum number of results'));
     });
 
     test('well-covered evidence has no warnings', () {

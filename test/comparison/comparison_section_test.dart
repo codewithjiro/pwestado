@@ -111,20 +111,17 @@ void main() {
     tester,
   ) async {
     await pumpApp(tester);
-    expect(find.text('Choose a location on MAPA'), findsOneWidget);
+    expect(find.text('Start with a location on MAPA'), findsOneWidget);
     await scrollTo(tester, find.text(ComparisonSection.title));
-    expect(find.text('No site chosen.'), findsNWidgets(2));
-    expect(
-      find.textContaining('then tap "Use current pin" here for Site A'),
-      findsOne,
-    );
+    expect(find.text('No location chosen yet.'), findsNWidgets(2));
+    expect(find.textContaining('tap "Use map location" for Site A'), findsOne);
     expect(find.text(ComparisonSection.analyzeBoth), findsNothing);
   });
 
   testWidgets('compares two analyzed sites side by side', (tester) async {
     final container = await pumpApp(tester);
     await assignBoth(tester, container);
-    expect(find.text('Not analyzed yet.'), findsNWidgets(2));
+    expect(find.text('Ready to analyze.'), findsNWidgets(2));
 
     await tapText(tester, ComparisonSection.analyzeBoth);
 
@@ -142,12 +139,15 @@ void main() {
     expect(find.text('0 (0 within 250 m)'), findsOneWidget);
     expect(find.text('Road 30 m; major 120 m'), findsNWidgets(2));
 
-    await scrollTo(tester, find.text('Heuristic score'));
+    await scrollTo(tester, find.text('Suitability score'));
     expect(find.text('64 / 100'), findsOneWidget);
     expect(find.text('74 / 100'), findsOneWidget);
-    expect(find.text('Higher heuristic score'), findsOneWidget);
+    expect(find.text('Higher suitability score'), findsOneWidget);
 
-    await scrollTo(tester, find.text('Site B has the higher heuristic score'));
+    await scrollTo(
+      tester,
+      find.text('Site B has the higher suitability score'),
+    );
     expect(find.textContaining('(+10.0 points)'), findsOneWidget);
     expect(find.text(ComparisonSection.disclaimer), findsOneWidget);
     expect(find.text(ComparisonSection.notComparable), findsNothing);
@@ -163,7 +163,7 @@ void main() {
     await assignBoth(tester, container);
     await tapText(tester, ComparisonSection.analyzeBoth);
 
-    expect(find.text('No connection'), findsOneWidget);
+    expect(find.text('No internet connection'), findsOneWidget);
     expect(find.text('Search failed'), findsWidgets);
     await tapText(tester, 'Use sample demo data');
 
@@ -173,8 +173,11 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('SAMPLE DEMO DATA'), findsWidgets);
-    expect(find.text('Higher heuristic score'), findsNothing);
-    expect(find.textContaining('has the higher heuristic score'), findsNothing);
+    expect(find.text('Higher suitability score'), findsNothing);
+    expect(
+      find.textContaining('has the higher suitability score'),
+      findsNothing,
+    );
   });
 
   testWidgets('a settings change blocks the ranking until re-analyzed', (
@@ -183,7 +186,7 @@ void main() {
     final container = await pumpApp(tester);
     await assignBoth(tester, container);
     await tapText(tester, ComparisonSection.analyzeBoth);
-    expect(find.text('Higher heuristic score'), findsOneWidget);
+    expect(find.text('Higher suitability score'), findsOneWidget);
 
     container
         .read(exploreControllerProvider.notifier)
@@ -192,9 +195,9 @@ void main() {
 
     await scrollTo(tester, find.text(ComparisonSection.notComparable));
     expect(find.textContaining('Search settings changed'), findsOneWidget);
-    expect(find.text('Higher heuristic score'), findsNothing);
+    expect(find.text('Higher suitability score'), findsNothing);
     expect(
-      find.text('Analyzed with different settings; re-analyze to compare.'),
+      find.text('Uses different search settings. Update it to compare.'),
       findsNWidgets(2),
     );
 

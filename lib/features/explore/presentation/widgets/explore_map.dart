@@ -115,8 +115,52 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
   /// site changes (GPS, search, saved analyses) move the camera to the site.
   String? _gestureSiteId;
 
+  /// Whether the app is in dark mode. Read in [didChangeDependencies] so
+  /// async map code never touches `context` after an await.
+  bool _dark = false;
+
   MapboxTokenStatus get _tokenStatus =>
       widget.tokenStatus ?? MapboxConfig.tokenStatus;
+
+  /// Brand colors for native map layers, chosen for the current basemap.
+  Color get _mapAccent =>
+      _dark ? const Color(0xFFA8E6C5) : BrandColors.emerald500;
+  Color get _mapAccentStrong =>
+      _dark ? const Color(0xFFA8E6C5) : BrandColors.emerald700;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    if (dark == _dark) return;
+    _dark = dark;
+    // Restyle the existing native map in place; the MapWidget itself is
+    // never rebuilt for a theme change.
+    if (_styleLoaded) {
+      _applyLightPreset();
+      _placeOrnaments();
+      _drawnRadius = null;
+      _queueMapSync();
+    }
+  }
+
+  /// Mapbox Standard's runtime "lightPreset": day for light mode, night for
+  /// dark mode. Re-applied after every style (re)load, because a reload
+  /// resets import config.
+  Future<void> _applyLightPreset() async {
+    final map = _map;
+    if (map == null) return;
+    try {
+      await map.setStyleImportConfigProperty(
+        'basemap',
+        'lightPreset',
+        _dark ? 'night' : 'day',
+      );
+    } catch (e) {
+      // A cosmetic failure: the day map is still fully usable.
+      debugPrint('Mapbox light preset not applied: ${describeError(e)}');
+    }
+  }
 
   @override
   void didUpdateWidget(ExploreMap oldWidget) {
@@ -173,7 +217,7 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
         // Sits to the right of the ~85 dp wide Mapbox wordmark.
         marginLeft: AppSpacing.lg + 92,
         marginTop: top - 4,
-        iconColor: BrandColors.emerald700.toARGB32(),
+        iconColor: _mapAccentStrong.toARGB32(),
       ),
     );
     await map.compass.updateSettings(
@@ -187,6 +231,7 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
 
   void _onStyleLoaded(StyleLoadedEventData _) {
     _styleLoaded = true;
+    _applyLightPreset();
     if (_problem == MapLoadProblem.styleFailed) {
       _setProblem(MapLoadProblem.none);
     }
@@ -448,9 +493,9 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
         await _radiusManager!.create(
           PolygonAnnotationOptions(
             geometry: _circle(radiusQuery),
-            fillColor: BrandColors.emerald500.toARGB32(),
-            fillOpacity: 0.08,
-            fillOutlineColor: BrandColors.emerald700.toARGB32(),
+            fillColor: _mapAccent.toARGB32(),
+            fillOpacity: _dark ? 0.12 : 0.08,
+            fillOutlineColor: _mapAccentStrong.toARGB32(),
           ),
         );
       }
@@ -480,10 +525,10 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
       LocationComponentSettings(
         enabled: true,
         pulsingEnabled: true,
-        pulsingColor: BrandColors.emerald500.toARGB32(),
+        pulsingColor: _mapAccent.toARGB32(),
         showAccuracyRing: true,
         accuracyRingColor: BrandColors.mint.withValues(alpha: 0.25).toARGB32(),
-        accuracyRingBorderColor: BrandColors.emerald500.toARGB32(),
+        accuracyRingBorderColor: _mapAccent.toARGB32(),
       ),
     );
   }
@@ -665,7 +710,7 @@ class _CenterPin extends StatelessWidget {
             width: 8,
             height: 8,
             decoration: BoxDecoration(
-              color: BrandColors.emerald900,
+              color: context.palette.heading,
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 1.5),
             ),
@@ -673,11 +718,11 @@ class _CenterPin extends StatelessWidget {
           // Icons.place draws its tip about 4% above the box's bottom edge.
           Transform.translate(
             offset: const Offset(0, -size / 2 + 2),
-            child: const Icon(
+            child: Icon(
               Icons.place,
               size: size,
-              color: BrandColors.emerald700,
-              shadows: [Shadow(color: Color(0x660B3D2E), blurRadius: 6)],
+              color: context.palette.brand,
+              shadows: [const Shadow(color: Color(0x660B3D2E), blurRadius: 6)],
             ),
           ),
         ],
@@ -698,7 +743,7 @@ class _PickBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color: BrandColors.surfaceRaised,
+      color: context.palette.surface,
       elevation: 6,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: Padding(
@@ -748,7 +793,7 @@ class _SampleMapChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: SampleBanner.background,
+      color: context.palette.sampleContainer,
       elevation: 3,
       borderRadius: BorderRadius.circular(999),
       child: Padding(
@@ -759,16 +804,16 @@ class _SampleMapChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.science_outlined,
               size: 16,
-              color: SampleBanner.foreground,
+              color: context.palette.sample,
             ),
             const SizedBox(width: AppSpacing.xs),
             Text(
               '${SampleBanner.title} · NOT REAL BUSINESSES',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: SampleBanner.foreground,
+                color: context.palette.sample,
                 fontWeight: FontWeight.w800,
               ),
             ),

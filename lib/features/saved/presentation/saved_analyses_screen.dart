@@ -5,7 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router.dart';
 import '../../../app/theme.dart';
 import '../../../core/utils/age.dart';
+import '../../../shared/widgets/category_art.dart';
+import '../../comparison/domain/site_comparison.dart';
+import '../../comparison/state/comparison_controller.dart';
+import '../../explore/state/explore_controller.dart';
+import '../data/saved_analysis_repository.dart';
 import '../../../shared/widgets/surfaces.dart';
+import '../../../shared/widgets/tab_page.dart';
 import '../../places/state/place_providers.dart';
 import '../domain/saved_analysis.dart';
 import '../state/saved_analyses_controller.dart';
@@ -16,7 +22,8 @@ import 'saved_widgets.dart';
 class SavedAnalysesScreen extends ConsumerWidget {
   const SavedAnalysesScreen({super.key});
 
-  static const title = 'Saved analyses';
+  static const title = 'Saved';
+  static const subtitle = 'Your analyses, stored on this phone · works offline';
   static const emptyTitle = 'No saved analyses yet';
   static const historicalNote =
       'Historical results stored on this device. They keep the evidence and '
@@ -81,25 +88,7 @@ class SavedAnalysesScreen extends ConsumerWidget {
 
     // A bottom-navigation tab: no back arrow.
     return Scaffold(
-      backgroundColor: BrandColors.offWhite,
-      appBar: AppBar(
-        toolbarHeight: 64,
-        titleSpacing: AppSpacing.lg,
-        automaticallyImplyLeading: false,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(title),
-            Text(
-              'Stored on this phone · works offline',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: BrandColors.inkMuted),
-            ),
-          ],
-        ),
-      ),
+      appBar: buildTabAppBar(context, title: title, subtitle: subtitle),
       body: body,
     );
   }
@@ -135,14 +124,14 @@ class _SavedTile extends ConsumerWidget {
     final deleteButton = IconButton(
       tooltip: 'Delete saved analysis',
       icon: const Icon(Icons.delete_outline),
-      color: BrandColors.inkMuted,
+      color: context.palette.textSecondary,
       onPressed: () => deleteSavedWithUndo(context, ref, summary.id),
     );
 
     if (!summary.isReadable || category == null) {
       return AppCard(
-        color: BrandColors.roseWash,
-        borderColor: BrandColors.roseEdge,
+        color: context.palette.dangerContainer,
+        borderColor: context.palette.dangerBorder,
         elevated: false,
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg,
@@ -189,7 +178,7 @@ class _SavedTile extends ConsumerWidget {
           color: theme.colorScheme.error,
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
-        child: const Icon(Icons.delete_outline, color: Colors.white),
+        child: Icon(Icons.delete_outline, color: theme.colorScheme.onError),
       ),
       onDismissed: (_) => deleteSavedWithUndo(context, ref, summary.id),
       child: AppCard(
@@ -198,90 +187,103 @@ class _SavedTile extends ConsumerWidget {
           onTap: () => context.go(AppRoutes.savedDetail(summary.id)),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
+              AppSpacing.md,
               AppSpacing.md,
               AppSpacing.xs,
-              AppSpacing.md,
+              AppSpacing.sm,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: BrandColors.mintSoft,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  child: Icon(category.icon, color: BrandColors.emerald700),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${category.label} · ${summary.radius!.label}',
-                        style: theme.textTheme.titleSmall,
-                      ),
-                      Text(_placeText(ref, summary), style: muted),
-                      const SizedBox(height: AppSpacing.xs),
-                      Wrap(
-                        spacing: AppSpacing.xs,
-                        runSpacing: AppSpacing.xs,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CategoryArt(category: category, size: 48),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SavedSourceBadge(source: summary.source!),
-                          const HistoricalPill(),
+                          Text(
+                            _placeText(ref, summary),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          Text(
+                            '${category.label} · within '
+                            '${summary.radius!.label}',
+                            style: muted,
+                          ),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Saved ${formatSavedDate(context, savedAt!)}',
-                        style: muted,
-                      ),
-                      Text(
-                        'Evidence retrieved '
-                        '${formatSavedDate(context, retrievedAt)} '
-                        '(${formatAge(DateTime.now().difference(retrievedAt))} '
-                        'ago)',
-                        style: muted,
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Padding(
+                      padding: const EdgeInsets.only(right: AppSpacing.sm),
+                      child: _ScoreBadge(total: total),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
                   children: [
-                    if (total != null)
-                      Semantics(
-                        label: 'Saved score ${total.round()} out of 100',
-                        excludeSemantics: true,
-                        child: Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: '${total.round()}',
-                                style: theme.textTheme.headlineSmall?.copyWith(
-                                  color: BrandColors.emerald900,
-                                ),
-                              ),
-                              TextSpan(text: '/100', style: muted),
-                            ],
+                    SavedSourceBadge(source: summary.source!),
+                    const HistoricalPill(),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Saved ${formatSavedDate(context, savedAt!)} · data from '
+                  '${formatAge(DateTime.now().difference(retrievedAt))} ago',
+                  style: muted,
+                ),
+                Row(
+                  children: [
+                    TextButton.icon(
+                      onPressed: () =>
+                          context.go(AppRoutes.savedDetail(summary.id)),
+                      icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                      label: const Text('Open'),
+                    ),
+                    PopupMenuButton<CompareSlot>(
+                      tooltip: 'Compare this analysis',
+                      onSelected: (slot) =>
+                          _compare(context, ref, summary.id, slot),
+                      itemBuilder: (context) => [
+                        for (final slot in CompareSlot.values)
+                          PopupMenuItem(
+                            value: slot,
+                            child: Text('Compare as ${slot.title}'),
                           ),
+                      ],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.md,
                         ),
-                      )
-                    else
-                      SizedBox(
-                        width: 72,
-                        child: Text(
-                          'Insufficient data',
-                          textAlign: TextAlign.end,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: BrandColors.inkMuted,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.compare_arrows_rounded,
+                              size: 18,
+                              color: context.palette.brand,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(
+                              'Compare',
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: context.palette.brand,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                    ),
+                    const Spacer(),
                     deleteButton,
                   ],
                 ),
@@ -290,6 +292,96 @@ class _SavedTile extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  /// Loads the full record (local, offline), aligns the search settings
+  /// with it, puts it in [slot] and opens COMPARE.
+  static Future<void> _compare(
+    BuildContext context,
+    WidgetRef ref,
+    int id,
+    CompareSlot slot,
+  ) async {
+    final router = GoRouter.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final saved = await ref.read(savedAnalysisRepositoryProvider).load(id);
+      final query = saved.analysis.competitors.query;
+      ref
+          .read(exploreControllerProvider.notifier)
+          .applySettings(query.category, query.radius);
+      ref.read(comparisonControllerProvider.notifier).loadSaved(slot, saved);
+      router.go(AppRoutes.compare);
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              '${slot.title} now holds this saved analysis '
+              '(${settingsLabel(query)}).',
+            ),
+          ),
+        );
+    } catch (e) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Couldn’t open this saved analysis.')),
+        );
+    }
+  }
+}
+
+/// The saved total in a soft rounded badge with aligned digits, or
+/// "No score" when the record had insufficient evidence.
+class _ScoreBadge extends StatelessWidget {
+  const _ScoreBadge({required this.total});
+
+  final double? total;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = context.palette;
+    final total = this.total;
+    return Container(
+      constraints: const BoxConstraints(minWidth: 60),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: total == null ? palette.surfaceMuted : palette.accentWash,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(
+          color: total == null ? palette.border : palette.accentContainer,
+        ),
+      ),
+      child: total == null
+          ? Text(
+              'No score',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: palette.textSecondary,
+              ),
+            )
+          : Semantics(
+              label: 'Saved score ${total.round()} out of 100',
+              excludeSemantics: true,
+              child: Column(
+                children: [
+                  Text(
+                    '${total.round()}',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontFeatures: AppFonts.tabular,
+                      height: 1.1,
+                    ),
+                  ),
+                  Text('of 100', style: theme.textTheme.labelSmall),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -321,11 +413,11 @@ class _Message extends StatelessWidget {
               Container(
                 width: 72,
                 height: 72,
-                decoration: const BoxDecoration(
-                  color: BrandColors.mintSoft,
+                decoration: BoxDecoration(
+                  color: context.palette.accentContainer,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: 34, color: BrandColors.emerald700),
+                child: Icon(icon, size: 34, color: context.palette.brand),
               ),
               const SizedBox(height: AppSpacing.lg),
               Text(
@@ -337,7 +429,7 @@ class _Message extends StatelessWidget {
               Text(
                 message,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: BrandColors.inkMuted,
+                  color: context.palette.textSecondary,
                 ),
                 textAlign: TextAlign.center,
               ),

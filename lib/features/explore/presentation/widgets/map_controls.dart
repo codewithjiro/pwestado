@@ -175,17 +175,19 @@ class _MapButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = primary ? BrandColors.mint : BrandColors.emerald700;
+    final palette = context.palette;
+    // The primary button is a fixed brand moment in both themes.
+    final foreground = primary ? BrandColors.mint : palette.brand;
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: primary ? BrandColors.emerald900 : BrandColors.surfaceRaised,
+        color: primary ? BrandColors.emerald900 : palette.surfaceElevated,
         elevation: 4,
-        shadowColor: const Color(0x550B3D2E),
+        shadowColor: palette.shadow,
         shape: CircleBorder(
           side: primary
               ? const BorderSide(color: BrandColors.mint, width: 1.5)
-              : const BorderSide(color: BrandColors.outlineSoft),
+              : BorderSide(color: palette.border),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(

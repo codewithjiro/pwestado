@@ -55,25 +55,25 @@ abstract final class SuitabilityRules {
 
 enum Criterion {
   competitorProximity(
-    'Competitor proximity',
+    'Nearby competition',
     0.40,
-    'Fewer mapped same-category businesses nearby scores higher. A high '
-        'count can also mean proven demand; this does not measure market '
-        'saturation.',
+    'Fewer similar businesses on the map nearby scores higher. Many '
+        'competitors can also mean proven demand, so this is not a measure '
+        'of market saturation.',
   ),
   complementary(
-    'Complementary establishments',
+    'Helpful places nearby',
     0.30,
-    'More mapped schools, markets, banks, clinics, supermarkets and similar '
-        'places nearby scores higher. It counts mapped places only, not '
-        'customers or demand.',
+    'Schools, markets, banks, clinics, supermarkets and similar places on '
+        'the map bring people to an area. More of them scores higher. It '
+        'counts places, not customers or demand.',
   ),
   roadAccess(
-    'Mapped road access (proxy)',
+    'Mapped road access',
     0.30,
-    'A mapped road close to the site, and a mapped major road nearby, score '
-        'higher. Rough OpenStreetMap proxy only: not travel time, '
-        'walkability, traffic, or parking.',
+    'A road on the map close to the spot, and a major road nearby, score '
+        'higher. A rough map-based check only: not travel time, '
+        'walkability, traffic or parking.',
   );
 
   const Criterion(this.label, this.weight, this.meaning);
@@ -310,9 +310,10 @@ SuitabilityScore scoreSuitability(ScoringInput input) {
   final missing = criteria.where((c) => !c.isAvailable).toList();
   if (missing.isNotEmpty) {
     warnings.add(
-      'Insufficient data: ${missing.map((c) => c.criterion.label).join(', ')} '
-      '${missing.length == 1 ? 'is' : 'are'} unavailable, so no total score '
-      'is calculated.',
+      'We couldn’t get enough information to score this location yet: '
+      '${missing.map((c) => c.criterion.label.toLowerCase()).join(', ')} '
+      '${missing.length == 1 ? 'is' : 'are'} missing, so no total score is '
+      'shown.',
     );
   }
   if (competitors != null && complementary != null) {
@@ -320,10 +321,10 @@ SuitabilityScore scoreSuitability(ScoringInput input) {
     if (mapped < SuitabilityRules.sparseCoverageThreshold) {
       lowConfidence = true;
       warnings.add(
-        'Low confidence: only $mapped mapped '
-        '${mapped == 1 ? 'place was' : 'places were'} found. OpenStreetMap '
-        'coverage looks sparse here, so few mapped competitors may not mean '
-        'few real ones.',
+        'Some nearby businesses may not be listed on the map, so this result '
+        'may be incomplete. Only $mapped '
+        '${mapped == 1 ? 'place was' : 'places were'} found on '
+        'OpenStreetMap here.',
       );
     }
   }
@@ -331,15 +332,15 @@ SuitabilityScore scoreSuitability(ScoringInput input) {
       (complementary?.possiblyTruncated ?? false)) {
     lowConfidence = true;
     warnings.add(
-      'Some results hit the server limit, so counts may be understated.',
+      'The map server returned its maximum number of results, so some '
+      'counts may be lower than what is really there.',
     );
   }
   if (roads != null && roads.roadCount == 0) {
     lowConfidence = true;
     warnings.add(
-      'No qualifying road is mapped within '
-      '${SuitabilityRules.roadSearchMeters} m. Roads may exist but be '
-      'unmapped.',
+      'No road is mapped within ${SuitabilityRules.roadSearchMeters} m. '
+      'Roads may exist but not be on the map yet.',
     );
   }
 

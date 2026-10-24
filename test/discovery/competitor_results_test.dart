@@ -92,7 +92,7 @@ void main() {
     final container = await pumpApp(tester);
     await pickSiteAndSearch(tester, container);
 
-    expect(find.text('Searching OpenStreetMap…'), findsOneWidget);
+    expect(find.text('Looking for nearby businesses…'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
     expect(repo.calls, hasLength(1));
 
@@ -105,19 +105,19 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(
-      find.text('3 mapped Coffee Shop records within 1 km'),
+      find.text('3 Coffee Shop businesses found within 1 km'),
       findsOneWidget,
     );
     expect(find.text(MapSetupCard.openAnalyze), findsOneWidget);
     await openList(tester);
     expect(find.text(CompetitorSummary.listTitle), findsOneWidget);
 
-    await scrollTo(tester, find.text('3 mapped records'));
-    expect(find.text('3 mapped records'), findsOneWidget);
+    await scrollTo(tester, find.text('3 businesses found'));
+    expect(find.text('3 businesses found'), findsOneWidget);
     expect(inSheet(find.text('LIVE')), findsOneWidget);
-    expect(find.textContaining('Retrieved live at'), findsOneWidget);
+    expect(find.textContaining('Updated at'), findsOneWidget);
     expect(
-      find.textContaining('Coffee Shop (amenity=cafe) within 1 km'),
+      find.textContaining('Coffee Shop · within 1 km · on OpenStreetMap'),
       findsOne,
     );
 
@@ -171,19 +171,22 @@ void main() {
     repo.pending.single.complete(resultFor(repo.calls.single.query, []));
     await tester.pumpAndSettle();
     expect(
-      find.text('No mapped Coffee Shop records within 1 km'),
+      find.text('No Coffee Shop businesses found within 1 km'),
       findsOneWidget,
     );
     await openList(tester);
 
     await scrollTo(tester, find.text(CompetitorResults.emptyMessage));
     expect(
-      find.text('No mapped records found within this radius.'),
+      find.text('No businesses found on the map within this radius.'),
       findsOneWidget,
     );
-    expect(find.text('0 mapped records'), findsOneWidget);
+    expect(find.text('0 businesses found'), findsOneWidget);
     expect(find.textContaining('No competitors'), findsNothing);
-    expect(find.textContaining('may still exist here'), findsOneWidget);
+    expect(
+      find.textContaining('may exist but not be on the map yet'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('cached results are labeled cached', (tester) async {
@@ -198,10 +201,10 @@ void main() {
     await tester.pumpAndSettle();
     await openList(tester);
 
-    await scrollTo(tester, find.text('1 mapped record'));
+    await scrollTo(tester, find.text('1 business found'));
     expect(inSheet(find.text('CACHED')), findsOneWidget);
     expect(find.text('LIVE'), findsNothing);
-    expect(find.textContaining('Cached copy of a response'), findsOneWidget);
+    expect(find.textContaining('Saved copy from'), findsOneWidget);
     expect(find.textContaining('3 min ago'), findsOneWidget);
   });
 
@@ -218,17 +221,17 @@ void main() {
     );
     await tester.pumpAndSettle();
     // The map card names the failure and offers a retry right there.
-    expect(find.text('Too many requests (HTTP 429)'), findsOneWidget);
+    expect(find.text('Too many searches right now'), findsOneWidget);
     await openList(tester, via: 'Details');
 
     await scrollTo(tester, find.text('Use sample demo data'));
-    expect(inSheet(find.text('Too many requests (HTTP 429)')), findsOne);
-    expect(find.textContaining('none were retrieved'), findsOneWidget);
+    expect(inSheet(find.text('Too many searches right now')), findsOne);
+    expect(find.textContaining('no results came back'), findsOneWidget);
 
     await tester.tap(inSheet(find.text('Try again')));
     await tester.pump();
     expect(repo.calls, hasLength(2));
-    expect(find.text('Searching OpenStreetMap…'), findsWidgets);
+    expect(find.text('Looking for nearby businesses…'), findsWidgets);
   });
 
   testWidgets('sample mode is unmistakably labeled', (tester) async {
@@ -241,7 +244,7 @@ void main() {
     await openList(tester, via: 'Details');
 
     await scrollTo(tester, find.text('Use sample demo data'));
-    expect(inSheet(find.text('No connection')), findsOneWidget);
+    expect(inSheet(find.text('No internet connection')), findsOneWidget);
     await tester.tap(find.text('Use sample demo data'));
     await tester.pumpAndSettle();
 
@@ -251,7 +254,7 @@ void main() {
     expect(find.textContaining('not real businesses'), findsWidgets);
     expect(find.text('LIVE'), findsNothing);
     expect(find.textContaining('Sample Coffee Shop 1 (demo)'), findsOneWidget);
-    expect(find.byTooltip('Refresh from OpenStreetMap'), findsNothing);
+    expect(find.byTooltip('Search again'), findsNothing);
     await scrollTo(tester, find.text(CompetitorResults.sampleNote));
     expect(
       find.text(CompetitorResults.attribution),
@@ -278,7 +281,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('1. Kape Uno'), findsNothing);
-    expect(find.text('1 mapped record'), findsNothing);
+    expect(find.text('1 business found'), findsNothing);
     expect(find.text(MapSetupCard.findLabel), findsOneWidget);
     expect(
       container.read(competitorControllerProvider).status,
@@ -293,7 +296,7 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Searching OpenStreetMap…'), findsNothing);
+    expect(find.text('Looking for nearby businesses…'), findsNothing);
     expect(repo.tokens.single!.isCancelled, isTrue);
   });
 

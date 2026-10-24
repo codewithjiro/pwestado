@@ -106,13 +106,16 @@ class _Body extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.history_toggle_off, color: BrandColors.mint),
+                  Icon(
+                    Icons.history_toggle_off,
+                    color: context.palette.onBrandFill,
+                  ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
                       SavedAnalysisDetailScreen.historicalTitle.toUpperCase(),
                       style: theme.textTheme.labelLarge?.copyWith(
-                        color: BrandColors.mint,
+                        color: context.palette.onBrandFill,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.1,
                       ),
@@ -254,7 +257,7 @@ class _Body extends ConsumerWidget {
       ..showSnackBar(
         const SnackBar(
           content: Text(
-            'Saved site placed on the map. Tap "Find nearby competitors" '
+            'Saved site placed on the map. Tap "Find nearby businesses" '
             'for current OpenStreetMap data.',
           ),
         ),
@@ -293,21 +296,21 @@ class _StoredCompetitorsState extends State<_StoredCompetitors> {
         children: [
           SectionHeader(
             icon: Icons.storefront_outlined,
-            iconBackground: const Color(0xFFFCE7D9),
-            iconColor: BrandColors.competitorOrange,
+            iconBackground: context.palette.competitorContainer,
+            iconColor: context.palette.competitor,
             title: isSample
-                ? '${result.count} sample records'
-                : '${result.count} mapped '
-                      '${result.count == 1 ? 'competitor' : 'competitors'}',
+                ? '${result.count} sample businesses'
+                : '${result.count} '
+                      '${result.count == 1 ? 'business' : 'businesses'} found',
             subtitle:
-                'As saved · ${result.query.category.osmTag} within '
+                'As saved · ${result.query.category.label} within '
                 '${result.query.radius.label}',
           ),
           const SizedBox(height: AppSpacing.md),
           if (businesses.isEmpty)
             Text(
-              'No mapped records were found within this radius when it was '
-              'saved.',
+              'No businesses were found on the map within this radius when it '
+              'was saved.',
               style: mutedSmall(context),
             ),
           for (final (index, business) in visible.indexed)
@@ -320,7 +323,7 @@ class _StoredCompetitorsState extends State<_StoredCompetitors> {
                     child: Text(
                       '${index + 1}',
                       style: theme.textTheme.labelMedium?.copyWith(
-                        color: BrandColors.inkMuted,
+                        color: context.palette.textSecondary,
                       ),
                     ),
                   ),
@@ -336,7 +339,7 @@ class _StoredCompetitorsState extends State<_StoredCompetitors> {
                             ? FontStyle.italic
                             : null,
                         color: business.name == null
-                            ? BrandColors.inkMuted
+                            ? context.palette.textSecondary
                             : null,
                       ),
                     ),
@@ -344,7 +347,7 @@ class _StoredCompetitorsState extends State<_StoredCompetitors> {
                   Text(
                     formatDistance(business.distanceMeters),
                     style: theme.textTheme.labelLarge?.copyWith(
-                      color: BrandColors.emerald700,
+                      color: context.palette.brand,
                     ),
                   ),
                 ],
@@ -391,10 +394,10 @@ class _LoadError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.sd_card_alert_outlined,
               size: 48,
-              color: BrandColors.emerald700,
+              color: context.palette.brand,
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(

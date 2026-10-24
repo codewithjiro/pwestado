@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme.dart';
 import '../../../shared/widgets/elapsed_wait.dart';
 import '../../../core/utils/geo.dart';
+import '../../../core/models/business_category.dart';
 import '../domain/competitors.dart';
+import 'business_thumbnail.dart';
 import '../state/competitor_controller.dart';
 import 'competitor_details_sheet.dart';
 import 'source_labels.dart';
@@ -28,17 +30,18 @@ void openCompetitorDetails(
 class CompetitorResults extends ConsumerStatefulWidget {
   const CompetitorResults({super.key});
 
-  static const emptyMessage = 'No mapped records found within this radius.';
+  static const emptyMessage =
+      'No businesses found on the map within this radius.';
   static const coverageNote =
-      'Only businesses mapped in OpenStreetMap appear. Coverage is '
-      'incomplete and can be out of date, so this is not a full list of '
-      'businesses or a measure of their activity.';
+      'Only businesses listed on OpenStreetMap appear. Some may be missing '
+      'or out of date, so this isn’t a complete list and doesn’t show how '
+      'busy they are.';
   static const attribution =
       'Business data © OpenStreetMap contributors (ODbL), via the Overpass '
       'API.';
 
   static const sampleNote =
-      'The records above are fictional sample data. Live searches use '
+      'The businesses above are fictional sample data. Live searches use '
       'OpenStreetMap data (© OpenStreetMap contributors, ODbL) via the '
       'Overpass API.';
 
@@ -108,13 +111,16 @@ class _Loading extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Searching OpenStreetMap…', style: theme.textTheme.titleSmall),
+          Text(
+            'Looking for nearby businesses…',
+            style: theme.textTheme.titleSmall,
+          ),
           const SizedBox(height: AppSpacing.sm),
           ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.pill),
-            child: const LinearProgressIndicator(
+            child: LinearProgressIndicator(
               minHeight: 6,
-              backgroundColor: BrandColors.mintSoft,
+              backgroundColor: context.palette.accentContainer,
               semanticsLabel: 'Searching OpenStreetMap',
             ),
           ),
@@ -122,10 +128,10 @@ class _Loading extends StatelessWidget {
           const ElapsedWait(),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Querying the public Overpass API. Shared servers can take up to '
-            'a minute to answer.',
+            'We use a free public map server, so this can take up to a '
+            'minute. Thanks for waiting!',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: BrandColors.inkMuted,
+              color: context.palette.textSecondary,
             ),
           ),
           Align(
@@ -144,30 +150,32 @@ class _Loading extends StatelessWidget {
   int? statusCode,
 ) => switch (failure) {
   CompetitorFailure.timeout => (
-    'Search timed out',
-    'The Overpass server took too long to answer. Try again in a moment.',
+    'The search took too long',
+    'The map data server is slow right now. Please try again in a moment.',
     Icons.hourglass_empty,
   ),
   CompetitorFailure.rateLimited => (
-    'Too many requests (HTTP 429)',
-    'The public Overpass server is limiting requests. Wait a minute '
-        'before retrying.',
+    'Too many searches right now',
+    'The free map data server is limiting requests. Please wait a minute, '
+        'then try again.',
     Icons.front_hand_outlined,
   ),
   CompetitorFailure.serverBusy => (
-    'Overpass server busy${statusCode == null ? '' : ' (HTTP $statusCode)'}',
-    'The server could not run the search right now. Try again shortly.',
+    'The map data server is busy',
+    'It couldn’t run the search just now. This usually clears up in a few '
+        'seconds, so try again shortly.',
     Icons.dns_outlined,
   ),
   CompetitorFailure.network => (
-    'No connection',
-    'Could not reach the Overpass server. Check the internet connection '
-        'and try again.',
+    'No internet connection',
+    'We couldn’t reach the map data server. Check your connection and try '
+        'again.',
     Icons.wifi_off,
   ),
   CompetitorFailure.badResponse => (
-    'Unexpected response${statusCode == null ? '' : ' (HTTP $statusCode)'}',
-    'The server answered with something PWESTADO could not read.',
+    'Something went wrong',
+    'The map data server sent a reply we couldn’t read'
+        '${statusCode == null ? '' : ' (code $statusCode)'}. Try again.',
     Icons.error_outline,
   ),
 };
@@ -190,8 +198,8 @@ class _ErrorView extends StatelessWidget {
     final theme = Theme.of(context);
     final (title, message, icon) = describeOverpassFailure(failure, statusCode);
     return _Card(
-      color: BrandColors.roseWash,
-      borderColor: BrandColors.roseEdge,
+      color: context.palette.dangerContainer,
+      borderColor: context.palette.dangerBorder,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -206,9 +214,9 @@ class _ErrorView extends StatelessWidget {
           Text(message, style: theme.textTheme.bodySmall),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'No competitor records are shown because none were retrieved.',
+            'Nothing is shown, because no results came back.',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: BrandColors.inkMuted,
+              color: context.palette.textSecondary,
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -251,7 +259,7 @@ class _EmptyView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _ResultHeader(
-            title: '0 mapped records',
+            title: '0 businesses found',
             result: result,
             onRefresh: onRefresh,
           ),
@@ -263,13 +271,10 @@ class _EmptyView extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: BrandColors.mintSoft,
+                  color: context.palette.accentContainer,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
-                child: const Icon(
-                  Icons.search_off,
-                  color: BrandColors.emerald700,
-                ),
+                child: Icon(Icons.search_off, color: context.palette.brand),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
@@ -282,12 +287,12 @@ class _EmptyView extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'OpenStreetMap has no ${query.category.osmTag} records '
-                      'within ${query.radius.label} of this site. Businesses '
-                      'may still exist here but not be mapped yet. Try a '
-                      'larger radius or another site.',
+                      'OpenStreetMap lists no ${query.category.label.toLowerCase()} '
+                      'businesses within ${query.radius.label}. Some may '
+                      'exist but not be on the map yet. Try a larger radius '
+                      'or another spot.',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: BrandColors.inkMuted,
+                        color: context.palette.textSecondary,
                       ),
                     ),
                   ],
@@ -329,7 +334,7 @@ class _ResultList extends StatelessWidget {
         ? businesses
         : businesses.take(CompetitorResults.initialRows).toList();
     final muted = theme.textTheme.bodySmall?.copyWith(
-      color: BrandColors.inkMuted,
+      color: context.palette.textSecondary,
     );
     final unnamed = businesses.where((b) => b.name == null).length;
 
@@ -346,9 +351,10 @@ class _ResultList extends StatelessWidget {
             children: [
               _ResultHeader(
                 title: isSample
-                    ? '${result.count} sample records'
-                    : '${result.count} mapped '
-                          '${result.count == 1 ? 'record' : 'records'}',
+                    ? '${result.count} sample businesses'
+                    : '${result.count} '
+                          '${result.count == 1 ? 'business' : 'businesses'} '
+                          'found',
                 result: result,
                 onRefresh: isSample ? null : onRefresh,
               ),
@@ -368,7 +374,7 @@ class _ResultList extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   '${result.skippedCount} returned '
-                  '${result.skippedCount == 1 ? 'record was' : 'records were'} '
+                  '${result.skippedCount == 1 ? 'place was' : 'places were'} '
                   'skipped for missing coordinates.',
                   style: muted,
                 ),
@@ -376,7 +382,7 @@ class _ResultList extends StatelessWidget {
               if (result.possiblyTruncated) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'The server returned the maximum number of records; some '
+                  'The server returned its maximum number of results; some '
                   'may be missing. Try a smaller radius.',
                   style: muted,
                 ),
@@ -389,6 +395,7 @@ class _ResultList extends StatelessWidget {
           _BusinessTile(
             index: index + 1,
             business: business,
+            category: result.query.category,
             selected: business.key == state.selectedKey,
             onTap: () => onOpen(business),
           ),
@@ -443,8 +450,8 @@ class _ResultHeader extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '${query.category.label} (${query.category.osmTag}) within '
-                '${query.radius.label}',
+                '${query.category.label} · within ${query.radius.label} · on '
+                'OpenStreetMap',
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 2),
@@ -454,10 +461,10 @@ class _ResultHeader extends StatelessWidget {
         ),
         if (onRefresh != null)
           IconButton(
-            tooltip: 'Refresh from OpenStreetMap',
+            tooltip: 'Search again',
             onPressed: onRefresh,
             icon: const Icon(Icons.refresh),
-            color: BrandColors.emerald700,
+            color: context.palette.brand,
           ),
       ],
     );
@@ -468,12 +475,14 @@ class _BusinessTile extends StatelessWidget {
   const _BusinessTile({
     required this.index,
     required this.business,
+    required this.category,
     required this.selected,
     required this.onTap,
   });
 
   final int index;
   final NearbyBusiness business;
+  final BusinessCategory category;
   final bool selected;
   final VoidCallback onTap;
 
@@ -481,17 +490,17 @@ class _BusinessTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final muted = theme.textTheme.bodySmall?.copyWith(
-      color: BrandColors.inkMuted,
+      color: context.palette.textSecondary,
     );
     final subtitle = business.details['Address'] ?? business.details['Brand'];
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Material(
-        color: selected ? BrandColors.mintWash : BrandColors.surfaceRaised,
+        color: selected ? context.palette.accentWash : context.palette.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
           side: BorderSide(
-            color: selected ? BrandColors.emerald500 : BrandColors.outlineSoft,
+            color: selected ? context.palette.brand : context.palette.border,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -507,7 +516,7 @@ class _BusinessTile extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const CompetitorDot(),
+                  BusinessThumbnail(business: business, category: category),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
@@ -522,7 +531,7 @@ class _BusinessTile extends StatelessWidget {
                                 ? FontStyle.italic
                                 : null,
                             color: business.name == null
-                                ? BrandColors.inkMuted
+                                ? context.palette.textSecondary
                                 : null,
                           ),
                         ),
@@ -543,18 +552,21 @@ class _BusinessTile extends StatelessWidget {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: BrandColors.mintWash,
+                      color: context.palette.accentWash,
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                     ),
                     child: Text(
                       formatDistance(business.distanceMeters),
                       style: theme.textTheme.labelMedium?.copyWith(
-                        color: BrandColors.emerald700,
+                        color: context.palette.brand,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                  const Icon(Icons.chevron_right, color: BrandColors.inkMuted),
+                  Icon(
+                    Icons.chevron_right,
+                    color: context.palette.textSecondary,
+                  ),
                 ],
               ),
             ),
@@ -576,11 +588,15 @@ class _CoverageNote extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = Theme.of(
       context,
-    ).textTheme.bodySmall?.copyWith(color: BrandColors.inkMuted);
+    ).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.info_outline, size: 18, color: BrandColors.inkMuted),
+        Icon(
+          Icons.info_outline,
+          size: 18,
+          color: context.palette.textSecondary,
+        ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Column(
@@ -602,15 +618,11 @@ class _CoverageNote extends StatelessWidget {
 }
 
 class _Card extends StatelessWidget {
-  const _Card({
-    required this.child,
-    this.color = BrandColors.surfaceRaised,
-    this.borderColor = BrandColors.outlineSoft,
-  });
+  const _Card({required this.child, this.color, this.borderColor});
 
   final Widget child;
-  final Color color;
-  final Color borderColor;
+  final Color? color;
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -622,10 +634,10 @@ class _Card extends StatelessWidget {
         AppSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: color,
+        color: color ?? context.palette.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: borderColor),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: borderColor ?? context.palette.border),
+        boxShadow: context.palette.cardShadow,
       ),
       child: child,
     );

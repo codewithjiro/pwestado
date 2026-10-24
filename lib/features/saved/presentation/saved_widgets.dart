@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
 import '../../discovery/domain/competitors.dart';
-import '../../discovery/presentation/source_labels.dart';
 import '../domain/saved_analysis.dart';
 import '../state/saved_analyses_controller.dart';
 
@@ -25,18 +24,18 @@ class SavedSourceBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (background, foreground, icon) = switch (source) {
       DataSource.live => (
-        BrandColors.emerald700,
-        Colors.white,
+        context.palette.brandFill,
+        Theme.of(context).colorScheme.onPrimary,
         Icons.wifi_tethering,
       ),
       DataSource.cached => (
-        BrandColors.mintSoft,
-        BrandColors.emerald900,
+        context.palette.accentContainer,
+        context.palette.onAccentContainer,
         Icons.history,
       ),
       DataSource.sample => (
-        SampleBanner.background,
-        SampleBanner.foreground,
+        context.palette.sampleContainer,
+        context.palette.sample,
         Icons.science_outlined,
       ),
     };
@@ -83,23 +82,22 @@ class HistoricalPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: BrandColors.sand,
+        color: context.palette.historicalContainer,
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: BrandColors.outline),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.history_toggle_off,
             size: 13,
-            color: BrandColors.ink,
+            color: context.palette.historical,
           ),
           const SizedBox(width: 4),
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: BrandColors.ink,
+              color: context.palette.historical,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
             ),

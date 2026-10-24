@@ -6,6 +6,8 @@ import '../../../shared/widgets/elapsed_wait.dart';
 import '../../../shared/widgets/surfaces.dart';
 import '../../../core/models/selected_site.dart';
 import '../../../core/utils/geo.dart';
+import '../../ai/data/ai_payload.dart';
+import '../../ai/presentation/ai_insights_card.dart';
 import '../../analysis/domain/site_analysis.dart';
 import '../../analysis/domain/suitability_scoring.dart';
 import '../../analysis/presentation/site_analysis_section.dart';
@@ -15,6 +17,7 @@ import '../../discovery/presentation/source_labels.dart';
 import '../../explore/presentation/widgets/compare_pin_image.dart';
 import '../../explore/state/explore_controller.dart';
 import '../../places/presentation/site_place_label.dart';
+import '../../places/state/place_providers.dart';
 import '../../saved/presentation/saved_widgets.dart';
 import '../../saved/state/saved_analyses_controller.dart';
 import '../domain/site_comparison.dart';
@@ -26,15 +29,15 @@ import '../state/comparison_controller.dart';
 class ComparisonSection extends ConsumerWidget {
   const ComparisonSection({super.key});
 
-  static const title = 'Compare two sites';
-  static const useCurrentPin = 'Use current pin';
-  static const moveToCurrentPin = 'Move to current pin';
-  static const analyzeBoth = 'Analyze both sites';
+  static const title = 'Compare two locations';
+  static const useCurrentPin = 'Use map location';
+  static const moveToCurrentPin = 'Move to map location';
+  static const analyzeBoth = 'Analyze both locations';
   static const notComparable = 'Not comparable yet';
   static const similarScores = 'Scores are similar';
   static const disclaimer =
-      'A higher heuristic score is not an objectively better site. It does '
-      'not predict sales, customer demand, foot traffic, profit, or business '
+      'A higher score doesn’t guarantee a better location. It doesn’t '
+      'predict sales, customer demand, foot traffic, profit or business '
       'success.';
 
   @override
@@ -71,13 +74,13 @@ class ComparisonSection extends ConsumerWidget {
             const SectionHeader(
               icon: Icons.compare_arrows_rounded,
               title: title,
-              subtitle: 'Site A vs Site B, same settings',
+              subtitle: 'Same business type and radius for both',
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Both sites are analyzed with the same settings: '
-              '${explore.category.label} · ${explore.radius.label}. Each site '
-              'keeps its own pin and evidence.',
+              'Both locations use the same search settings: '
+              '${explore.category.label} · ${explore.radius.label}. Each one '
+              'keeps its own spot and results.',
               style: _muted(context),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -92,11 +95,13 @@ class ComparisonSection extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
             ],
-            if (!slots.hasAnySite || !bothAssigned)
+            // Without a map location the page's guidance card explains
+            // the first step, so don't repeat it here.
+            if (explore.site != null && (!slots.hasAnySite || !bothAssigned))
               Text(
                 slots.a.site == null
                     ? 'Choose a location on MAPA, then tap '
-                          '"$useCurrentPin" here for Site A. Choose a '
+                          '"$useCurrentPin" here for Site A. Then choose a '
                           'second location for Site B.'
                     : 'Choose a different location on MAPA, then tap '
                           '"$useCurrentPin" here for Site B.',
@@ -123,12 +128,35 @@ class ComparisonSection extends ConsumerWidget {
               const SizedBox(height: AppSpacing.md),
               _Verdict(slots: slots, comparison: comparison),
             ],
+            if (slots.a.analysis != null && slots.b.analysis != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              AiInsightsCard(
+                compare: true,
+                payload: comparison.blockers.isEmpty
+                    ? AiPayload.comparison(
+                        a: slots.a.analysis!,
+                        b: slots.b.analysis!,
+                        areaA: _area(ref, slots.a.site),
+                        areaB: _area(ref, slots.b.site),
+                        verdict: comparison,
+                      )
+                    : null,
+                unavailableMessage:
+                    'AI can compare once both locations have a complete score '
+                    'with the same search settings.',
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 }
+
+/// General area (town/province) for the AI request, if already looked up.
+String? _area(WidgetRef ref, SelectedSite? site) => site == null
+    ? null
+    : ref.watch(placeLabelProvider(pointOf(site))).value?.subtitle;
 
 class _SlotTile extends ConsumerWidget {
   const _SlotTile({
@@ -166,13 +194,13 @@ class _SlotTile extends ConsumerWidget {
     final List<Widget> details;
     switch (state.status) {
       case SlotStatus.empty:
-        details = [Text('No site chosen.', style: _muted(context))];
+        details = [Text('No location chosen yet.', style: _muted(context))];
       case SlotStatus.pending:
-        details = [Text('Not analyzed yet.', style: _muted(context))];
+        details = [Text('Ready to analyze.', style: _muted(context))];
       case SlotStatus.loading:
         details = [
           Text(
-            'Fetching OpenStreetMap evidence… can take up to a minute.',
+            'Checking the map… this can take up to a minute.',
             style: _muted(context),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -203,18 +231,18 @@ class _SlotTile extends ConsumerWidget {
           ),
           if (needsAnalysis)
             Text(
-              'Analyzed with different settings; re-analyze to compare.',
+              'Uses different search settings. Update it to compare.',
               style: _muted(context),
             ),
           if (state.reused)
             Text(
-              'Reused from the analysis above. No new request.',
+              'Reused from your ANALYZE result. No extra waiting.',
               style: _muted(context),
             ),
           if (savedAt != null)
             Text(
-              'Saved analysis from ${formatSavedDate(context, savedAt)}. '
-              'Historical evidence, not refreshed.',
+              'Saved on ${formatSavedDate(context, savedAt)}. Shows information '
+              'from then, not today.',
               style: _muted(context),
             ),
         ];
@@ -291,10 +319,14 @@ class _SlotTile extends ConsumerWidget {
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: site == null ? BrandColors.offWhite : BrandColors.mintWash,
+        color: site == null
+            ? context.palette.surfaceMuted
+            : context.palette.accentWash,
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
-          color: site == null ? BrandColors.outline : BrandColors.mintSoft,
+          color: site == null
+              ? context.palette.borderStrong
+              : context.palette.accentContainer,
         ),
       ),
       child: Row(
@@ -360,8 +392,8 @@ class SlotBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: background,
         shape: BoxShape.circle,
-        border: Border.all(color: BrandColors.emerald900, width: 1.5),
-        boxShadow: AppShadows.card,
+        border: Border.all(color: context.palette.heading, width: 1.5),
+        boxShadow: context.palette.cardShadow,
       ),
       child: Text(
         slot.letter,
@@ -389,9 +421,11 @@ class ComparisonTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final label = theme.textTheme.labelMedium?.copyWith(
-      color: BrandColors.inkMuted,
+      color: context.palette.textSecondary,
     );
-    final value = theme.textTheme.bodySmall?.copyWith(color: BrandColors.ink);
+    final value = theme.textTheme.bodySmall?.copyWith(
+      color: context.palette.textPrimary,
+    );
 
     TableRow row(String name, String Function(SlotState s) cell) => TableRow(
       children: [
@@ -415,7 +449,7 @@ class ComparisonTable extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: BrandColors.outline),
+        border: Border.all(color: context.palette.borderStrong),
       ),
       clipBehavior: Clip.antiAlias,
       child: Table(
@@ -424,14 +458,14 @@ class ComparisonTable extends StatelessWidget {
           1: FlexColumnWidth(),
           2: FlexColumnWidth(),
         },
-        border: const TableBorder(
-          horizontalInside: BorderSide(color: BrandColors.outlineSoft),
-          verticalInside: BorderSide(color: BrandColors.outlineSoft),
+        border: TableBorder(
+          horizontalInside: BorderSide(color: context.palette.border),
+          verticalInside: BorderSide(color: context.palette.border),
         ),
         defaultVerticalAlignment: TableCellVerticalAlignment.top,
         children: [
           TableRow(
-            decoration: const BoxDecoration(color: BrandColors.mintWash),
+            decoration: BoxDecoration(color: context.palette.accentWash),
             children: [
               const _Cell(SizedBox.shrink()),
               for (final slot in CompareSlot.values)
@@ -491,7 +525,7 @@ class ComparisonTable extends StatelessWidget {
           row('Road proxy', (s) => ready(s, (a) => _roadText(a))),
           TableRow(
             children: [
-              _Cell(Text('Heuristic score', style: label)),
+              _Cell(Text('Suitability score', style: label)),
               for (final slot in CompareSlot.values)
                 _ScoreCell(
                   text: ready(slots[slot], (a) => _scoreText(a.score.total)),
@@ -562,7 +596,7 @@ class _ScoreCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      color: highlighted ? BrandColors.mintSoft : null,
+      color: highlighted ? context.palette.accentContainer : null,
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -570,15 +604,15 @@ class _ScoreCell extends StatelessWidget {
           Text(
             text,
             style: theme.textTheme.titleSmall?.copyWith(
-              color: BrandColors.emerald900,
+              color: context.palette.heading,
               fontWeight: FontWeight.w800,
             ),
           ),
           if (highlighted)
             Text(
-              'Higher heuristic score',
+              'Higher suitability score',
               style: theme.textTheme.labelSmall?.copyWith(
-                color: BrandColors.emerald700,
+                color: context.palette.brand,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -623,7 +657,7 @@ class _SourceText extends StatelessWidget {
   Widget build(BuildContext context) {
     final sample = source == DataSource.sample;
     final style = Theme.of(context).textTheme.bodySmall?.copyWith(
-      color: sample ? SampleBanner.foreground : BrandColors.ink,
+      color: sample ? context.palette.sample : context.palette.textPrimary,
       fontWeight: sample ? FontWeight.w800 : FontWeight.w600,
     );
     final text = Text(
@@ -634,7 +668,7 @@ class _SourceText extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: SampleBanner.background,
+        color: context.palette.sampleContainer,
         borderRadius: BorderRadius.circular(6),
       ),
       child: text,
@@ -678,7 +712,7 @@ class _Verdict extends StatelessWidget {
           '${_scoreText(slots.a.analysis!.score.total)} vs '
               '${_scoreText(slots.b.analysis!.score.total)}: within '
               '${ComparisonRules.similarScorePoints.round()} points, which '
-              'this heuristic cannot meaningfully separate.',
+              'this simple score can’t meaningfully separate.',
         ],
       );
     } else {
@@ -686,7 +720,7 @@ class _Verdict extends StatelessWidget {
       final loser = slots[higher.other].analysis!;
       headline = InfoNote(
         icon: Icons.trending_up_rounded,
-        title: '${higher.title} has the higher heuristic score',
+        title: '${higher.title} has the higher suitability score',
         lines: [
           '${_scoreText(winner.score.total)} vs '
               '${_scoreText(loser.score.total)} '

@@ -305,6 +305,6 @@ void main() {
     await tester.tap(find.byTooltip('About PWESTADO and its data'));
     await tester.pumpAndSettle();
     expect(find.text('About PWESTADO'), findsOneWidget);
-    expect(find.text('Business listings'), findsOneWidget);
+    expect(find.text('Nearby businesses'), findsOneWidget);
   });
 }

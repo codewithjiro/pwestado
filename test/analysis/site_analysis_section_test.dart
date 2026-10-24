@@ -116,7 +116,7 @@ void main() {
     await searchAndAnalyze(tester, container);
 
     expect(
-      find.text('Fetching complementary places and nearby roads…'),
+      find.text('Checking helpful places and roads nearby…'),
       findsOneWidget,
     );
     contexts.pending.single.complete(contextFor(contexts.calls.single.query));
@@ -133,22 +133,22 @@ void main() {
     );
     expect(find.textContaining(SiteAnalysisSection.disclaimer), findsOne);
 
-    await scrollTo(tester, find.text('Competitor proximity · 40%'));
+    await scrollTo(tester, find.text('Nearby competition · 40%'));
     expect(find.text('75 / 100'), findsOneWidget);
     expect(find.text('Adds 30.0 of 40 possible points.'), findsOneWidget);
-    await scrollTo(tester, find.text('Complementary establishments · 30%'));
+    await scrollTo(tester, find.text('Helpful places nearby · 30%'));
     expect(find.text('12 / 100'), findsOneWidget);
     expect(find.text('6 mapped places: 6 school.'), findsOneWidget);
-    await scrollTo(tester, find.text('Mapped road access (proxy) · 30%'));
+    await scrollTo(tester, find.text('Mapped road access · 30%'));
     expect(find.textContaining('not travel time'), findsOneWidget);
 
+    await scrollTo(tester, find.text('How the score is calculated'));
+    await tester.tap(find.text('How the score is calculated'));
+    await tester.pumpAndSettle();
     await scrollTo(
       tester,
       find.text('Total = 0.40 × 75 + 0.30 × 12 + 0.30 × 100 = 63.6'),
     );
-    await scrollTo(tester, find.text('How the score is calculated'));
-    await tester.tap(find.text('How the score is calculated'));
-    await tester.pumpAndSettle();
     await scrollTo(tester, find.text(SiteAnalysisSection.assumptionsNote));
     expect(find.textContaining('Complementary tags counted'), findsOneWidget);
 
@@ -163,7 +163,7 @@ void main() {
     );
     expect(find.text(CompetitorResults.attribution), findsWidgets);
     expect(find.text(SiteAnalysisSection.sampleLabel), findsNothing);
-    expect(find.text('Low confidence'), findsNothing);
+    expect(find.text(SiteAnalysisSection.lowConfidenceLabel), findsNothing);
   });
 
   testWidgets('a failed evidence query shows Insufficient data', (
@@ -185,7 +185,7 @@ void main() {
       tester,
       find.textContaining('Nothing was substituted for the missing evidence'),
     );
-    expect(find.textContaining('Too many requests (HTTP 429)'), findsOne);
+    expect(find.textContaining('Too many searches right now'), findsOne);
 
     await tester.tap(find.text('Try again'));
     await tester.pump();
@@ -201,8 +201,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await scrollTo(tester, find.text('Low confidence'));
-    expect(find.textContaining('coverage looks sparse'), findsOneWidget);
+    await scrollTo(tester, find.text(SiteAnalysisSection.lowConfidenceLabel));
+    expect(find.textContaining('may not be listed on the map'), findsOneWidget);
   });
 
   testWidgets('sample data is labeled as a sample heuristic result', (

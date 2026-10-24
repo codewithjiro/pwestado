@@ -22,7 +22,7 @@ class AppErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color: BrandColors.offWhite,
+      color: context.palette.background,
       child: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -32,10 +32,10 @@ class AppErrorView extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.error_outline,
                     size: 48,
-                    color: BrandColors.emerald700,
+                    color: context.palette.brand,
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(
@@ -47,7 +47,7 @@ class AppErrorView extends StatelessWidget {
                   Text(
                     message,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: BrandColors.inkMuted,
+                      color: context.palette.textSecondary,
                     ),
                     textAlign: TextAlign.center,
                   ),

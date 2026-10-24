@@ -19,16 +19,15 @@ class CompareScreen extends ConsumerWidget {
     final site = ref.watch(exploreControllerProvider.select((s) => s.site));
     return TabPage(
       title: 'Compare',
-      subtitle: 'Site A vs Site B, same business type and radius',
+      subtitle: 'Put two possible locations side by side',
       children: [
         if (site == null)
           GuidanceCard(
             icon: Icons.add_location_alt_outlined,
-            title: 'Choose a location on MAPA',
+            title: 'Start with a location on MAPA',
             message:
-                'Each comparison slot stores the location chosen on MAPA. '
-                'Choose one, come back, and tap "Use current pin" for '
-                'Site A. Then choose another for Site B.',
+                'Pick a spot on MAPA, come back, and tap "Use map location" '
+                'for Site A. Then do the same with a second spot for Site B.',
             action: FilledButton.icon(
               onPressed: () => context.go(AppRoutes.explore),
               icon: const Icon(Icons.map_outlined),

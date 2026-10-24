@@ -14,10 +14,11 @@ import 'source_labels.dart';
 Future<void> showCompetitorListSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
+    useRootNavigator: true,
     isScrollControlled: true,
     useSafeArea: true,
     showDragHandle: true,
-    backgroundColor: BrandColors.offWhite,
+    backgroundColor: context.palette.background,
     builder: (context) => DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.75,
@@ -82,7 +83,7 @@ class CompetitorSummary extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Searching OpenStreetMap…',
+                        'Looking for nearby businesses…',
                         style: theme.textTheme.titleSmall,
                       ),
                       Text(
@@ -101,7 +102,7 @@ class CompetitorSummary extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             const LinearProgressIndicator(
-              semanticsLabel: 'Searching for competitors',
+              semanticsLabel: 'Looking for nearby businesses',
             ),
           ],
         );
@@ -122,10 +123,7 @@ class CompetitorSummary extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title, style: theme.textTheme.titleSmall),
-                      Text(
-                        'No competitor records were retrieved.',
-                        style: muted,
-                      ),
+                      Text('No results came back.', style: muted),
                     ],
                   ),
                 ),
@@ -166,9 +164,9 @@ class CompetitorSummary extends ConsumerWidget {
                     style: theme.textTheme.titleSmall,
                   ),
                 ),
-                viewListButton,
               ],
             ),
+            const SizedBox(height: AppSpacing.xs),
             Wrap(
               spacing: AppSpacing.xs,
               runSpacing: 2,
@@ -183,6 +181,8 @@ class CompetitorSummary extends ConsumerWidget {
                 ),
               ],
             ),
+            // Own line, so long counts and large fonts never squeeze it.
+            Align(alignment: Alignment.centerRight, child: viewListButton),
           ],
         );
     }
@@ -194,12 +194,12 @@ class CompetitorSummary extends ConsumerWidget {
   static String _countText(CompetitorResult result) {
     final query = result.query;
     if (result.isEmpty) {
-      return 'No mapped ${query.category.label} records within '
+      return 'No ${query.category.label} businesses found within '
           '${query.radius.label}';
     }
     final count = '${result.count}${result.possiblyTruncated ? '+' : ''}';
-    return '$count mapped ${query.category.label} '
-        '${result.count == 1 ? 'record' : 'records'} within '
+    return '$count ${query.category.label} '
+        '${result.count == 1 ? 'business' : 'businesses'} found within '
         '${query.radius.label}';
   }
 }

@@ -2,37 +2,39 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme.dart';
 
-/// The app's standard content card: white, 16 px radius, hairline border,
-/// one soft shadow. A [Material] so ink splashes and expansion tiles render.
+/// The app's standard content card: surface color, 16 px radius, hairline
+/// border, one soft shadow. A [Material] so ink splashes and expansion tiles
+/// render. Colors default to the current theme's palette.
 class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(AppSpacing.lg),
-    this.color = BrandColors.surfaceRaised,
-    this.borderColor = BrandColors.outlineSoft,
+    this.color,
+    this.borderColor,
     this.elevated = true,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
-  final Color color;
-  final Color borderColor;
+  final Color? color;
+  final Color? borderColor;
   final bool elevated;
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     final radius = BorderRadius.circular(AppRadius.md);
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: radius,
-        boxShadow: elevated ? AppShadows.card : null,
+        boxShadow: elevated ? palette.cardShadow : null,
       ),
       child: Material(
-        color: color,
+        color: color ?? palette.surface,
         shape: RoundedRectangleBorder(
           borderRadius: radius,
-          side: BorderSide(color: borderColor),
+          side: BorderSide(color: borderColor ?? palette.border),
         ),
         clipBehavior: Clip.antiAlias,
         child: Padding(padding: padding, child: child),
@@ -50,30 +52,31 @@ class SectionHeader extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.trailing,
-    this.iconBackground = BrandColors.mintSoft,
-    this.iconColor = BrandColors.emerald700,
+    this.iconBackground,
+    this.iconColor,
   });
 
   final IconData icon;
   final String title;
   final String? subtitle;
   final Widget? trailing;
-  final Color iconBackground;
-  final Color iconColor;
+  final Color? iconBackground;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = context.palette;
     return Row(
       children: [
         Container(
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: iconBackground,
+            color: iconBackground ?? palette.accentContainer,
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
-          child: Icon(icon, color: iconColor, size: 22),
+          child: Icon(icon, color: iconColor ?? palette.brand, size: 22),
         ),
         const SizedBox(width: AppSpacing.md),
         Expanded(
@@ -83,12 +86,7 @@ class SectionHeader extends StatelessWidget {
             children: [
               Text(title, style: theme.textTheme.titleMedium),
               if (subtitle != null)
-                Text(
-                  subtitle!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: BrandColors.inkMuted,
-                  ),
-                ),
+                Text(subtitle!, style: theme.textTheme.bodySmall),
             ],
           ),
         ),
@@ -98,41 +96,64 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
+/// Visual tones shared by pills and notes, so "sample", "AI" and
+/// "historical" look the same everywhere.
+enum Tone { brand, warning, danger, sample, ai, historical, neutral }
+
+extension ToneColors on AppPalette {
+  /// (background, foreground, border) for [tone].
+  (Color, Color, Color) toneColors(Tone tone) => switch (tone) {
+    Tone.brand => (accentContainer, onAccentContainer, accent),
+    Tone.warning => (warningContainer, warning, warningBorder),
+    Tone.danger => (dangerContainer, danger, dangerBorder),
+    Tone.sample => (sampleContainer, sample, sampleBorder),
+    Tone.ai => (aiContainer, ai, aiBorder),
+    Tone.historical => (historicalContainer, historical, historicalContainer),
+    Tone.neutral => (surfaceMuted, textSecondary, border),
+  };
+}
+
 /// Small rounded label with an icon.
 class StatusPill extends StatelessWidget {
   const StatusPill({
     super.key,
     required this.label,
     required this.icon,
-    this.background = BrandColors.mintSoft,
-    this.foreground = BrandColors.emerald900,
+    this.tone = Tone.brand,
+    this.background,
+    this.foreground,
     this.uppercase = false,
   });
 
   final String label;
   final IconData icon;
-  final Color background;
-  final Color foreground;
+  final Tone tone;
+  final Color? background;
+  final Color? foreground;
   final bool uppercase;
 
   @override
   Widget build(BuildContext context) {
+    final (toneBackground, toneForeground, _) = context.palette.toneColors(
+      tone,
+    );
+    final fg = foreground ?? toneForeground;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: background,
+        color: background ?? toneBackground,
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: foreground),
+          Icon(icon, size: 14, color: fg),
           const SizedBox(width: 4),
           Flexible(
             child: Text(
               uppercase ? label.toUpperCase() : label,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: foreground,
+                color: fg,
                 fontWeight: FontWeight.w700,
                 letterSpacing: uppercase ? 0.6 : null,
               ),
@@ -164,30 +185,26 @@ class InfoNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final p = context.palette;
     final (background, border, iconColor, textColor) = switch (tone) {
-      NoteTone.neutral => (
-        BrandColors.offWhite,
-        BrandColors.outline,
-        BrandColors.emerald700,
-        BrandColors.ink,
-      ),
+      NoteTone.neutral => (p.surfaceMuted, p.border, p.brand, p.textPrimary),
       NoteTone.positive => (
-        BrandColors.mintSoft,
-        BrandColors.mint,
-        BrandColors.emerald700,
-        BrandColors.ink,
+        p.accentContainer,
+        p.accent,
+        p.brand,
+        p.onAccentContainer,
       ),
       NoteTone.warning => (
-        BrandColors.amberWash,
-        BrandColors.amberEdge,
-        BrandColors.amberInk,
-        BrandColors.amberInk,
+        p.warningContainer,
+        p.warningBorder,
+        p.warning,
+        p.warning,
       ),
       NoteTone.danger => (
-        BrandColors.roseWash,
-        BrandColors.roseEdge,
-        theme.colorScheme.error,
-        BrandColors.ink,
+        p.dangerContainer,
+        p.dangerBorder,
+        p.danger,
+        p.textPrimary,
       ),
     };
     return Container(
@@ -239,6 +256,7 @@ class EyebrowLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
@@ -248,14 +266,14 @@ class EyebrowLabel extends StatelessWidget {
               width: 20,
               height: 20,
               alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                color: BrandColors.emerald900,
+              decoration: BoxDecoration(
+                color: palette.brandFill,
                 shape: BoxShape.circle,
               ),
               child: Text(
                 '$step',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: BrandColors.mint,
+                  color: palette.onBrandFill,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -265,8 +283,8 @@ class EyebrowLabel extends StatelessWidget {
           Text(
             text.toUpperCase(),
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: BrandColors.emerald700,
-              fontWeight: FontWeight.w800,
+              color: palette.brand,
+              fontWeight: FontWeight.w700,
               letterSpacing: 1.1,
             ),
           ),
@@ -278,4 +296,4 @@ class EyebrowLabel extends StatelessWidget {
 
 TextStyle? mutedSmall(BuildContext context) => Theme.of(
   context,
-).textTheme.bodySmall?.copyWith(color: BrandColors.inkMuted);
+).textTheme.bodySmall?.copyWith(color: context.palette.textSecondary);

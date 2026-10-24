@@ -135,15 +135,15 @@ void main() {
     await open(tester, container, AppRoutes.saved);
 
     expect(find.text(SavedAnalysesScreen.historicalNote), findsOneWidget);
-    expect(find.text('Coffee Shop · 1 km'), findsNWidgets(2));
-    expect(find.text('Bakery · 1 km'), findsOneWidget);
+    expect(find.text('Coffee Shop · within 1 km'), findsNWidgets(2));
+    expect(find.text('Bakery · within 1 km'), findsOneWidget);
     expect(find.text('LIVE-SOURCED'), findsOneWidget);
     expect(find.text('CACHED'), findsOneWidget);
     expect(find.text('SAMPLE DEMO DATA'), findsOneWidget);
     expect(find.text('HISTORICAL'), findsNWidgets(3));
     expect(find.textContaining('Saved Oct 21, 2026'), findsNWidgets(3));
-    expect(find.textContaining('Evidence retrieved'), findsNWidgets(3));
-    expect(find.text('64/100', findRichText: true), findsNWidgets(2));
+    expect(find.textContaining('data from'), findsNWidgets(3));
+    expect(find.text('64'), findsNWidgets(2));
   });
 
   testWidgets('delete removes a record and Undo restores it', (tester) async {
@@ -160,7 +160,7 @@ void main() {
     await tester.tap(find.text('Undo'));
     await tester.pumpAndSettle();
     expect(saved.rows.keys, [id]);
-    expect(find.text('Coffee Shop · 1 km'), findsOneWidget);
+    expect(find.text('Coffee Shop · within 1 km'), findsOneWidget);
   });
 
   testWidgets('swipe to delete also works', (tester) async {
@@ -168,7 +168,10 @@ void main() {
     final container = await pumpApp(tester);
     await open(tester, container, AppRoutes.saved);
 
-    await tester.drag(find.text('Coffee Shop · 1 km'), const Offset(-500, 0));
+    await tester.drag(
+      find.text('Coffee Shop · within 1 km'),
+      const Offset(-500, 0),
+    );
     await tester.pumpAndSettle();
     expect(saved.rows, isEmpty);
     expect(find.text('Saved analysis deleted.'), findsOneWidget);
@@ -180,7 +183,7 @@ void main() {
     final id = await seedLive();
     final container = await pumpApp(tester);
     await open(tester, container, AppRoutes.saved);
-    await tester.tap(find.text('Coffee Shop · 1 km'));
+    await tester.tap(find.text('Coffee Shop · within 1 km'));
     await tester.pumpAndSettle();
 
     expect(find.byType(SavedAnalysisDetailScreen), findsOneWidget);
@@ -216,6 +219,13 @@ void main() {
     await scrollIn(
       tester,
       SavedAnalysisDetailScreen,
+      find.text('How the score is calculated'),
+    );
+    await tester.tap(find.text('How the score is calculated'));
+    await tester.pumpAndSettle();
+    await scrollIn(
+      tester,
+      SavedAnalysisDetailScreen,
       find.text('Total = 0.40 × 75 + 0.30 × 12 + 0.30 × 100 = 63.6'),
     );
     await scrollIn(
@@ -226,7 +236,7 @@ void main() {
     await scrollIn(
       tester,
       SavedAnalysisDetailScreen,
-      find.text('3 mapped competitors'),
+      find.text('3 businesses found'),
     );
 
     expect(competitors.calls, isEmpty, reason: 'no network request');
@@ -256,7 +266,10 @@ void main() {
     expect(find.byType(CompareScreen), findsOneWidget, reason: 'on COMPARE');
     expect(find.textContaining('Search settings switched'), findsOneWidget);
     await scrollIn(tester, CompareScreen, find.text('HISTORICAL'));
-    expect(find.textContaining('Historical evidence, not refreshed'), findsOne);
+    expect(
+      find.textContaining('Shows information from then, not today'),
+      findsOne,
+    );
     expect(competitors.calls, isEmpty);
   });
 
@@ -286,6 +299,8 @@ void main() {
       200,
       scrollable: panel,
     );
+    await tester.ensureVisible(find.text(SiteAnalysisSection.analyzeLabel));
+    await tester.pumpAndSettle();
     await tester.tap(find.text(SiteAnalysisSection.analyzeLabel));
     await tester.pumpAndSettle();
     expect(saved.rows, isEmpty, reason: 'never saved without asking');

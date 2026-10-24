@@ -31,7 +31,7 @@ class SitePlaceLabel extends ConsumerWidget {
     final point = pointOf(site);
     final label = ref.watch(placeLabelProvider(point));
     final muted = theme.textTheme.bodySmall?.copyWith(
-      color: BrandColors.inkMuted,
+      color: context.palette.textSecondary,
     );
     final style = titleStyle ?? theme.textTheme.titleSmall;
 
@@ -129,7 +129,11 @@ class SiteTechnicalDetails extends StatelessWidget {
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
         dense: true,
         visualDensity: VisualDensity.compact,
-        leading: const Icon(Icons.tune, size: 18, color: BrandColors.inkMuted),
+        leading: Icon(
+          Icons.tune,
+          size: 18,
+          color: context.palette.textSecondary,
+        ),
         title: Text(title, style: Theme.of(context).textTheme.labelLarge),
         children: [
           _row(context, 'Latitude', site.latitude.toStringAsFixed(6)),

@@ -1,12 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme.dart';
+import '../../../../app/theme_mode_controller.dart';
 
-/// Plain-language summary of what PWESTADO does and the limits of its data.
+abstract final class AboutCopy {
+  static const title = 'About PWESTADO';
+  static const openTooltip = 'About & appearance';
+  static const appearance = 'Appearance';
+  static const appearanceHint =
+      'System follows your phone’s light or dark setting.';
+  static const tagline = 'Ang tamang pwesto, simula ng negosyo.';
+  static const intro =
+      'PWESTADO helps you explore possible business locations, see nearby '
+      'businesses listed on OpenStreetMap, and compare two spots before you '
+      'decide.';
+  static const licenses = 'Open-source licenses';
+}
+
+/// About PWESTADO, its data sources, and the appearance setting.
 Future<void> showAboutSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    // Above the bottom navigation bar, not inside the current tab.
+    useRootNavigator: true,
     builder: (context) => const _AboutSheet(),
   );
 }
@@ -26,51 +44,134 @@ class _AboutSheet extends StatelessWidget {
           AppSpacing.xl,
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('About PWESTADO', style: theme.textTheme.titleLarge),
-            const SizedBox(height: AppSpacing.sm),
+            Text(AboutCopy.title, style: theme.textTheme.headlineSmall),
+            const SizedBox(height: 2),
             Text(
-              'A pitch-stage prototype that helps you explore candidate '
-              'business sites, see nearby businesses mapped in '
-              'OpenStreetMap, and compare two locations.',
-              style: theme.textTheme.bodyMedium,
+              AboutCopy.tagline,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: context.palette.brand,
+                fontStyle: FontStyle.italic,
+              ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
+            Text(AboutCopy.intro, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: AppSpacing.xl),
+            const AppearanceSelector(),
+            const SizedBox(height: AppSpacing.xl),
+            Text(
+              'Where the data comes from',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpacing.md),
             const _Point(
               icon: Icons.map_outlined,
               title: 'Map',
               body:
-                  'Rendered by Mapbox. Mapbox draws the map; it is not the '
-                  'source of business listings.',
+                  'Drawn by Mapbox. Mapbox shows the map; it is not where the '
+                  'business list comes from.',
             ),
             const _Point(
               icon: Icons.storefront_outlined,
-              title: 'Business listings',
+              title: 'Nearby businesses',
               body:
-                  'Fetched from OpenStreetMap via the Overpass API only when '
-                  'you tap search. Mapped records can be incomplete or out of '
-                  'date, and do not show whether a business is open or busy. '
+                  'Fetched from OpenStreetMap (via the Overpass API) only when '
+                  'you tap search. Some businesses may not be listed or may '
+                  'have closed, and the map can’t tell if a place is busy. '
                   'Data © OpenStreetMap contributors (ODbL).',
             ),
             const _Point(
               icon: Icons.calculate_outlined,
-              title: 'Scores',
+              title: 'Suitability score',
               body:
-                  'A transparent heuristic with a visible formula. Not a '
-                  'measure of foot traffic, demand, or profit.',
+                  'A simple, transparent formula (40% competition, 30% nearby '
+                  'helpful places, 30% mapped roads). It does not measure foot '
+                  'traffic, demand, sales or profit.',
+            ),
+            const _Point(
+              icon: Icons.auto_awesome_outlined,
+              title: 'PWESTADO AI Insights',
+              body:
+                  'Optional. Only runs when you tap “Ask AI to explain”, and '
+                  'only sees the map evidence on screen. It explains the '
+                  'score; it never changes it.',
+            ),
+            const _Point(
+              icon: Icons.image_outlined,
+              title: 'Photos',
+              body:
+                  'Shown only when a business’s OpenStreetMap record links a '
+                  'freely licensed Wikimedia Commons image. Credits appear '
+                  'with each photo. Other businesses show a category '
+                  'illustration.',
             ),
             const _Point(
               icon: Icons.bookmarks_outlined,
               title: 'Saved analyses',
               body:
-                  'Stored only on this device, and only when you tap Save. '
-                  'They keep their original evidence and retrieval times, '
-                  'are never refreshed, and are not current business data.',
+                  'Kept only on this phone, and only when you tap Save. They '
+                  'keep their original evidence and dates and are never '
+                  'updated automatically.',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => showLicensePage(
+                  context: context,
+                  applicationName: 'PWESTADO',
+                ),
+                icon: const Icon(Icons.description_outlined, size: 20),
+                label: const Text(AboutCopy.licenses),
+              ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// System / Light / Dark, saved across restarts.
+class AppearanceSelector extends ConsumerWidget {
+  const AppearanceSelector({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final mode = ref.watch(themeModeControllerProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(AboutCopy.appearance, style: theme.textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.sm),
+        SegmentedButton<ThemeMode>(
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(
+              value: ThemeMode.system,
+              icon: Icon(Icons.brightness_auto_outlined),
+              label: Text('System'),
+            ),
+            ButtonSegment(
+              value: ThemeMode.light,
+              icon: Icon(Icons.light_mode_outlined),
+              label: Text('Light'),
+            ),
+            ButtonSegment(
+              value: ThemeMode.dark,
+              icon: Icon(Icons.dark_mode_outlined),
+              label: Text('Dark'),
+            ),
+          ],
+          selected: {mode},
+          onSelectionChanged: (s) =>
+              ref.read(themeModeControllerProvider.notifier).select(s.single),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(AboutCopy.appearanceHint, style: theme.textTheme.bodySmall),
+      ],
     );
   }
 }
@@ -90,7 +191,7 @@ class _Point extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: BrandColors.emerald700),
+          Icon(icon, color: context.palette.brand),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -98,12 +199,7 @@ class _Point extends StatelessWidget {
               children: [
                 Text(title, style: theme.textTheme.titleSmall),
                 const SizedBox(height: 2),
-                Text(
-                  body,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: BrandColors.inkMuted,
-                  ),
-                ),
+                Text(body, style: theme.textTheme.bodySmall),
               ],
             ),
           ),
