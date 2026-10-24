@@ -1,0 +1,10 @@
+{
+  "name": "pwestado-ai-insights",
+  "private": true,
+  "type": "module",
+  "description": "Secure Gemini proxy for PWESTADO AI Insights (Cloudflare Worker).",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "deploy": "npx wrangler deploy"
+  }
+}

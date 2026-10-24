@@ -1,0 +1,27 @@
+# PWESTADO AI Insights proxy. Deploy steps: see README.md.
+# Never put the Gemini key here. Use: npx wrangler secret put GEMINI_API_KEY
+name = "pwestado-ai-insights"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+GEMINI_MODEL = "gemini-3.1-flash-lite"
+# Hard daily ceiling on Gemini calls (approximate; KV-backed).
+DAILY_LIMIT = "200"
+MAX_OUTPUT_TOKENS = "1024"
+
+# Daily usage counter. Create with: npx wrangler kv namespace create USAGE
+# then paste the printed id below. The Worker refuses to call Gemini
+# without this binding.
+[[kv_namespaces]]
+binding = "USAGE"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Per-IP burst limit: 5 requests per 60 s.
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 5
+  period = 60
