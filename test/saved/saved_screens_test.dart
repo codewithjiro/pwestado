@@ -9,15 +9,18 @@ import 'package:pwestado/core/models/selected_site.dart';
 import 'package:pwestado/features/analysis/data/site_context_repository.dart';
 import 'package:pwestado/features/analysis/domain/site_analysis.dart';
 import 'package:pwestado/features/analysis/domain/site_context.dart';
+import 'package:pwestado/features/analysis/presentation/analyze_screen.dart';
 import 'package:pwestado/features/analysis/presentation/site_analysis_section.dart';
+import 'package:pwestado/features/comparison/presentation/compare_screen.dart';
 import 'package:pwestado/features/comparison/state/comparison_controller.dart';
 import 'package:pwestado/features/discovery/data/competitor_repository.dart';
 import 'package:pwestado/features/discovery/data/sample_competitors.dart';
 import 'package:pwestado/features/discovery/domain/competitors.dart';
 import 'package:pwestado/features/discovery/state/competitor_controller.dart';
 import 'package:pwestado/features/explore/data/location_service.dart';
-import 'package:pwestado/features/explore/presentation/widgets/search_panel.dart';
 import 'package:pwestado/features/explore/state/explore_controller.dart';
+import 'package:pwestado/features/places/presentation/site_place_label.dart';
+import 'package:pwestado/features/places/state/place_providers.dart';
 import 'package:pwestado/features/saved/data/saved_analysis_codec.dart';
 import 'package:pwestado/features/saved/data/saved_analysis_repository.dart';
 import 'package:pwestado/features/saved/presentation/saved_analyses_screen.dart';
@@ -26,6 +29,7 @@ import 'package:pwestado/features/saved/presentation/saved_analysis_detail_scree
 import '../comparison/comparison_fixtures.dart';
 import '../fake_competitor_repository.dart';
 import '../fake_location_service.dart';
+import '../fake_place_repository.dart';
 import '../fake_saved_analysis_repository.dart';
 import '../fake_site_context_repository.dart';
 
@@ -47,6 +51,7 @@ Future<ProviderContainer> pumpApp(WidgetTester tester) async {
     ProviderScope(
       overrides: [
         locationServiceProvider.overrideWithValue(FakeLocationService()),
+        placeRepositoryProvider.overrideWithValue(FakePlaceRepository()),
         competitorRepositoryProvider.overrideWithValue(competitors),
         siteContextRepositoryProvider.overrideWithValue(contexts),
         savedAnalysisRepositoryProvider.overrideWithValue(saved),
@@ -63,7 +68,14 @@ Future<void> open(
   ProviderContainer container,
   String location,
 ) async {
-  container.read(routerProvider).push(location);
+  container.read(routerProvider).go(location);
+  await tester.pumpAndSettle();
+}
+
+Future<void> openTab(WidgetTester tester, String label) async {
+  await tester.tap(
+    find.descendant(of: find.byType(NavigationBar), matching: find.text(label)),
+  );
   await tester.pumpAndSettle();
 }
 
@@ -91,10 +103,12 @@ void main() {
   testWidgets('empty list explains that nothing is saved without asking', (
     tester,
   ) async {
-    final container = await pumpApp(tester);
-    await open(tester, container, AppRoutes.saved);
+    await pumpApp(tester);
+    await openTab(tester, 'SAVED');
 
     expect(find.text(SavedAnalysesScreen.emptyTitle), findsOneWidget);
+    expect(find.byType(BackButton), findsNothing, reason: 'a tab, not a page');
+    expect(find.byTooltip('Back'), findsNothing);
     expect(find.textContaining('Nothing is saved unless you ask'), findsOne);
   });
 
@@ -177,6 +191,13 @@ void main() {
     expect(find.text('LIVE-SOURCED'), findsOneWidget);
     expect(find.textContaining('Saved Oct 21, 2026'), findsOneWidget);
     expect(find.textContaining('never refreshed'), findsOneWidget);
+    // Readable label first; exact coordinates only under Technical details.
+    expect(find.text('Near Test Road'), findsOneWidget);
+    expect(find.text('15.093900'), findsNothing);
+    await tester.tap(find.text(SiteTechnicalDetails.title));
+    await tester.pumpAndSettle();
+    expect(find.text('15.093900'), findsOneWidget);
+    expect(find.text('120.768100'), findsOneWidget);
 
     await scrollIn(
       tester,
@@ -232,16 +253,9 @@ void main() {
     final slot = container.read(comparisonControllerProvider).a;
     expect(slot.isSaved, isTrue);
     expect(slot.analysis!.score.total, 63.6);
-    expect(find.byType(SearchPanel), findsOneWidget, reason: 'back on map');
+    expect(find.byType(CompareScreen), findsOneWidget, reason: 'on COMPARE');
     expect(find.textContaining('Search settings switched'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('HISTORICAL'),
-      200,
-      scrollable: find.descendant(
-        of: find.byType(SearchPanel),
-        matching: find.byType(Scrollable),
-      ),
-    );
+    await scrollIn(tester, CompareScreen, find.text('HISTORICAL'));
     expect(find.textContaining('Historical evidence, not refreshed'), findsOne);
     expect(competitors.calls, isEmpty);
   });
@@ -265,10 +279,8 @@ void main() {
         .selectSite(latitude: siteA.lat, longitude: siteA.lon);
     await container.read(competitorControllerProvider.notifier).search();
     await tester.pumpAndSettle();
-    final panel = find.descendant(
-      of: find.byType(SearchPanel),
-      matching: find.byType(Scrollable),
-    );
+    await openTab(tester, 'ANALYZE');
+    final panel = scrollableIn(AnalyzeScreen).first;
     await tester.scrollUntilVisible(
       find.text(SiteAnalysisSection.analyzeLabel),
       200,
@@ -283,6 +295,8 @@ void main() {
       200,
       scrollable: panel,
     );
+    await tester.ensureVisible(find.text(SaveAnalysisButton.label));
+    await tester.pumpAndSettle();
     await tester.tap(find.text(SaveAnalysisButton.label));
     await tester.pumpAndSettle();
 
@@ -290,6 +304,9 @@ void main() {
     final row = saved.rows.values.single;
     expect(row[SavedColumns.dataSource], 'live');
     expect(row[SavedColumns.totalScore], 63.6);
+    // Mapbox place names are temporary results: never written to SQLite.
+    expect(row[SavedColumns.siteLabel], 'Pinned site');
+    expect(row.values.whereType<String>().join(), isNot(contains('Test Road')));
     expect(find.text(SaveAnalysisButton.savedLabel), findsOneWidget);
     expect(find.textContaining('Analysis saved on this device'), findsOne);
 
@@ -297,5 +314,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(SavedAnalysisDetailScreen), findsOneWidget);
     expect(saved.rows, hasLength(1));
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      3,
+      reason: 'the SAVED tab is highlighted',
+    );
   });
 }

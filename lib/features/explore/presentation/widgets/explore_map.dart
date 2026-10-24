@@ -22,10 +22,11 @@ import '../../state/explore_controller.dart';
 import 'compare_pin_image.dart';
 import 'competitor_pin_image.dart';
 import 'map_controls.dart';
+import 'map_load_problem.dart';
 import 'map_unavailable.dart';
 import 'site_pin_image.dart';
 
-/// Live Mapbox Standard map with long-press site picking, the selected-site
+/// Live Mapbox Standard map with long-press and pick-mode site choice, the selected-site
 /// pin, competitor markers with the searched radius, the device location
 /// puck, and floating camera controls.
 ///
@@ -74,6 +75,7 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
     viewport: _initialViewport,
     onMapCreated: _onMapCreated,
     onStyleLoadedListener: _onStyleLoaded,
+    onMapLoadedListener: _onMapLoaded,
     onMapLoadErrorListener: _onMapLoadError,
   );
 
@@ -101,7 +103,17 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
 
   Future<void> _mapSync = Future.value();
   bool _styleLoaded = false;
-  bool _styleFailed = false;
+
+  /// True once Mapbox reports a fully rendered map. Until then the load
+  /// watchdog may cover the (black) native view with an explanation.
+  bool _mapLoaded = false;
+  int _tileErrors = 0;
+  Timer? _watchdog;
+  MapLoadProblem _problem = MapLoadProblem.none;
+
+  /// Id of the last site chosen by a gesture on the visible map; other
+  /// site changes (GPS, search, saved analyses) move the camera to the site.
+  String? _gestureSiteId;
 
   MapboxTokenStatus get _tokenStatus =>
       widget.tokenStatus ?? MapboxConfig.tokenStatus;
@@ -114,12 +126,28 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
 
   @override
   void dispose() {
+    _watchdog?.cancel();
     _competitorTaps?.cancel();
     super.dispose();
   }
 
+  void _startWatchdog() {
+    _watchdog?.cancel();
+    _watchdog = Timer(MapLoadWatchdog.timeout, () {
+      if (!mounted || _mapLoaded || _problem != MapLoadProblem.none) return;
+      debugPrint('Mapbox: no rendered map after ${MapLoadWatchdog.timeout}');
+      setState(() => _problem = MapLoadProblem.slow);
+    });
+  }
+
+  void _setProblem(MapLoadProblem problem) {
+    if (!mounted || problem == _problem) return;
+    setState(() => _problem = problem);
+  }
+
   Future<void> _onMapCreated(MapboxMap map) async {
     _map = map;
+    _startWatchdog();
     map.addInteraction(LongTapInteraction.onMap(_onLongTap));
     await map.scaleBar.updateSettings(ScaleBarSettings(enabled: false));
     await _placeOrnaments();
@@ -159,40 +187,75 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
 
   void _onStyleLoaded(StyleLoadedEventData _) {
     _styleLoaded = true;
-    if (_styleFailed && mounted) setState(() => _styleFailed = false);
+    if (_problem == MapLoadProblem.styleFailed) {
+      _setProblem(MapLoadProblem.none);
+    }
     _queueMapSync();
+  }
+
+  void _onMapLoaded(MapLoadedEventData _) {
+    _mapLoaded = true;
+    _watchdog?.cancel();
+    debugPrint('Mapbox: map rendered');
+    _setProblem(MapLoadProblem.none);
   }
 
   void _onMapLoadError(MapLoadingErrorEventData event) {
     // The raw SDK message can contain request URLs with the access token, so
-    // it is never shown, and only logged (debug builds) after redaction.
-    if (kDebugMode) {
-      debugPrint(
-        'Mapbox ${event.type.name} load error'
-        '${event.sourceId == null ? '' : ' (source ${event.sourceId})'}: '
-        '${redactSecrets(event.message)}',
-      );
-    }
-    // Only style failures blank the whole map; individual tile errors are
-    // left to the SDK's own retry.
-    if (event.type == MapLoadErrorType.STYLE && mounted) {
-      setState(() => _styleFailed = true);
-    }
+    // it is never shown, and is logged only after redaction. Release builds
+    // log it too: this is the evidence for diagnosing a blank map.
+    debugPrint(
+      'Mapbox ${event.type.name} load error'
+      '${event.sourceId == null ? '' : ' (source ${event.sourceId})'}: '
+      '${redactSecrets(event.message)}',
+    );
+    final isStyle = event.type == MapLoadErrorType.STYLE;
+    if (!isStyle && !_mapLoaded) _tileErrors++;
+    final problem = classifyMapLoadError(
+      isStyleError: isStyle,
+      message: event.message,
+      tileErrorsBeforeFirstRender: _tileErrors,
+    );
+    // Once something rendered, isolated tile errors are left to the SDK's
+    // own retry; only a token rejection is worth interrupting for.
+    if (problem == MapLoadProblem.none) return;
+    if (_mapLoaded && problem != MapLoadProblem.tokenRejected) return;
+    _setProblem(problem);
   }
 
-  void _retryStyle() {
-    setState(() => _styleFailed = false);
-    _map?.setStyleURI(MapboxStyles.STANDARD);
+  void _retryLoad() {
+    setState(() => _problem = MapLoadProblem.none);
+    _mapLoaded = false;
+    _tileErrors = 0;
+    _startWatchdog();
+    _map?.loadStyleURI(MapboxStyles.STANDARD);
   }
 
   void _onLongTap(MapContentGestureContext context) {
     final coordinates = context.point.coordinates;
-    ref
-        .read(exploreControllerProvider.notifier)
-        .selectSite(
-          latitude: coordinates.lat.toDouble(),
-          longitude: coordinates.lng.toDouble(),
-        );
+    _selectAt(coordinates.lat.toDouble(), coordinates.lng.toDouble());
+  }
+
+  void _selectAt(double latitude, double longitude) {
+    final controller = ref.read(exploreControllerProvider.notifier);
+    controller.selectSite(latitude: latitude, longitude: longitude);
+    _gestureSiteId = ref.read(exploreControllerProvider).site?.id;
+  }
+
+  /// "Use this spot" in pick mode: the coordinate under the center pin.
+  Future<void> _confirmPick() async {
+    final map = _map;
+    final size = context.size;
+    if (map == null || size == null) return;
+    final point = await map.coordinateForPixel(
+      ScreenCoordinate(x: size.width / 2, y: size.height / 2),
+    );
+    if (!mounted) return;
+    _selectAt(
+      point.coordinates.lat.toDouble(),
+      point.coordinates.lng.toDouble(),
+    );
+    ref.read(mapPickModeProvider.notifier).stop();
   }
 
   void _onCompetitorTap(PointAnnotation annotation) {
@@ -492,8 +555,11 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
   Widget build(BuildContext context) {
     ref.listen(exploreControllerProvider.select((s) => s.site), (prev, next) {
       _queueMapSync();
-      // Bring GPS fixes into view; a long-pressed site is already on screen.
-      if (next != null && next.source.isGps && next != prev) _flyToSite(next);
+      // Bring GPS fixes, searched places and reopened saved sites into
+      // view; a site picked by a gesture is already on screen.
+      if (next != null && next != prev && next.id != _gestureSiteId) {
+        _flyToSite(next);
+      }
     });
     ref.listen(
       comparisonControllerProvider.select((s) => (s.a.site, s.b.site)),
@@ -518,6 +584,8 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
     });
 
     final hasToken = _tokenStatus == MapboxTokenStatus.ok;
+    final hasProblem = hasToken && _problem != MapLoadProblem.none;
+    final picking = hasToken && ref.watch(mapPickModeProvider);
     final showingSample = ref.watch(
       competitorControllerProvider.select(
         (s) => s.status == CompetitorStatus.sample,
@@ -538,27 +606,137 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
                   ),
                 ),
         ),
-        if (hasToken && _styleFailed)
-          Positioned(
-            top: widget.topInset + AppSpacing.xxl + AppSpacing.sm,
-            left: AppSpacing.lg,
-            right: AppSpacing.lg,
-            child: _MapErrorBanner(onRetry: _retryStyle),
+        if (hasProblem)
+          Positioned.fill(
+            child: ValueListenableBuilder<double>(
+              valueListenable: widget.bottomInset,
+              builder: (context, bottom, _) => MapProblemOverlay(
+                problem: _problem,
+                onRetry: _retryLoad,
+                topInset: widget.topInset,
+                bottomInset: bottom,
+              ),
+            ),
           ),
-        if (hasToken && showingSample && !_styleFailed)
+        if (hasToken && showingSample && !hasProblem && !picking)
           Positioned(
             top: widget.topInset + AppSpacing.xxl + AppSpacing.sm,
             left: AppSpacing.lg,
             right: AppSpacing.lg,
             child: const Center(child: _SampleMapChip()),
           ),
-        MapControls(
-          bottomInset: widget.bottomInset,
-          mapAvailable: hasToken,
-          onRecenterHome: _flyHome,
-          onShowSite: _flyToSite,
-        ),
+        if (picking && !hasProblem) ...[
+          const Positioned.fill(child: IgnorePointer(child: _CenterPin())),
+          Positioned(
+            left: AppSpacing.lg,
+            right: AppSpacing.lg,
+            bottom: AppSpacing.lg,
+            child: _PickBar(
+              onCancel: ref.read(mapPickModeProvider.notifier).stop,
+              onConfirm: _confirmPick,
+            ),
+          ),
+        ] else
+          MapControls(
+            bottomInset: widget.bottomInset,
+            mapAvailable: hasToken && !hasProblem,
+            onRecenterHome: _flyHome,
+            onShowSite: _flyToSite,
+          ),
       ],
+    );
+  }
+}
+
+/// Fixed pin at the map's center for "Pick on map"; its tip marks the spot.
+class _CenterPin extends StatelessWidget {
+  const _CenterPin();
+
+  static const size = 52.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: BrandColors.emerald900,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 1.5),
+            ),
+          ),
+          // Icons.place draws its tip about 4% above the box's bottom edge.
+          Transform.translate(
+            offset: const Offset(0, -size / 2 + 2),
+            child: const Icon(
+              Icons.place,
+              size: size,
+              color: BrandColors.emerald700,
+              shadows: [Shadow(color: Color(0x660B3D2E), blurRadius: 6)],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PickBar extends StatelessWidget {
+  const _PickBar({required this.onCancel, required this.onConfirm});
+
+  static const confirmLabel = 'Use this spot';
+
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: BrandColors.surfaceRaised,
+      elevation: 6,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Pick a spot', style: theme.textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Drag the map until the green pin sits on your spot, then tap '
+              '"$confirmLabel". Pinch to zoom in for precision.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onCancel,
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton.icon(
+                    onPressed: onConfirm,
+                    icon: const Icon(Icons.check),
+                    label: const Text(confirmLabel),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -594,44 +772,6 @@ class _SampleMapChip extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MapErrorBanner extends StatelessWidget {
-  const _MapErrorBanner({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: BrandColors.surfaceRaised,
-      elevation: 3,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.sm,
-          AppSpacing.xs,
-          AppSpacing.sm,
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.cloud_off_outlined, color: theme.colorScheme.error),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Text(
-                'The map could not load. Check the internet connection and '
-                'that the Mapbox token is valid.',
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-            TextButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
       ),

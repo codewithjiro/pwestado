@@ -6,10 +6,11 @@ import 'package:pwestado/core/models/business_category.dart';
 import 'package:pwestado/features/discovery/data/competitor_repository.dart';
 import 'package:pwestado/features/discovery/domain/competitors.dart';
 import 'package:pwestado/features/discovery/presentation/competitor_results.dart';
+import 'package:pwestado/features/discovery/presentation/competitor_summary.dart';
 import 'package:pwestado/features/discovery/presentation/source_labels.dart';
 import 'package:pwestado/features/discovery/state/competitor_controller.dart';
 import 'package:pwestado/features/explore/data/location_service.dart';
-import 'package:pwestado/features/explore/presentation/widgets/search_panel.dart';
+import 'package:pwestado/features/explore/presentation/widgets/map_setup_card.dart';
 import 'package:pwestado/features/explore/state/explore_controller.dart';
 import 'package:pwestado/features/saved/data/saved_analysis_repository.dart';
 
@@ -43,12 +44,23 @@ Future<ProviderContainer> pumpApp(
   return ProviderScope.containerOf(tester.element(find.byType(PwestadoApp)));
 }
 
-Finder get panelScrollable => find.descendant(
-  of: find.byType(SearchPanel),
-  matching: find.byType(Scrollable),
-);
+Finder get sheet => find.byType(DraggableScrollableSheet);
 
-/// Scrolls the panel until [finder] is built, then fully into view so taps
+Finder get panelScrollable =>
+    find.descendant(of: sheet, matching: find.byType(Scrollable)).first;
+
+Finder inSheet(Finder finder) => find.descendant(of: sheet, matching: finder);
+
+/// Opens the full list from the map card's "View list" / "Details" button.
+Future<void> openList(WidgetTester tester, {String via = 'View list'}) async {
+  // The map card scrolls on short screens.
+  await tester.ensureVisible(find.text(via));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(via));
+  await tester.pumpAndSettle();
+}
+
+/// Scrolls the list sheet until [finder] is built, then fully into view so taps
 /// land on it.
 /// Pass `settle: false` while a progress indicator is animating.
 Future<void> scrollTo(
@@ -69,8 +81,7 @@ Future<void> pickSiteAndSearch(
       .read(exploreControllerProvider.notifier)
       .selectSite(latitude: 15.0939, longitude: 120.7681);
   await tester.pumpAndSettle();
-  await scrollTo(tester, find.text('Find competitors'));
-  await tester.tap(find.text('Find competitors'));
+  await tester.tap(find.text(MapSetupCard.findLabel));
   await tester.pump();
 }
 
@@ -82,7 +93,7 @@ void main() {
     await pickSiteAndSearch(tester, container);
 
     expect(find.text('Searching OpenStreetMap…'), findsOneWidget);
-    expect(find.text('Searching…'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
     expect(repo.calls, hasLength(1));
 
     repo.pending.single.complete(
@@ -93,10 +104,17 @@ void main() {
       ]),
     );
     await tester.pumpAndSettle();
+    expect(
+      find.text('3 mapped Coffee Shop records within 1 km'),
+      findsOneWidget,
+    );
+    expect(find.text(MapSetupCard.openAnalyze), findsOneWidget);
+    await openList(tester);
+    expect(find.text(CompetitorSummary.listTitle), findsOneWidget);
 
     await scrollTo(tester, find.text('3 mapped records'));
     expect(find.text('3 mapped records'), findsOneWidget);
-    expect(find.text('LIVE'), findsOneWidget);
+    expect(inSheet(find.text('LIVE')), findsOneWidget);
     expect(find.textContaining('Retrieved live at'), findsOneWidget);
     expect(
       find.textContaining('Coffee Shop (amenity=cafe) within 1 km'),
@@ -133,6 +151,7 @@ void main() {
       ]),
     );
     await tester.pumpAndSettle();
+    await openList(tester);
 
     await scrollTo(tester, find.text('1. Kape Way'));
     await tester.tap(find.text('1. Kape Way'));
@@ -151,6 +170,11 @@ void main() {
     await pickSiteAndSearch(tester, container);
     repo.pending.single.complete(resultFor(repo.calls.single.query, []));
     await tester.pumpAndSettle();
+    expect(
+      find.text('No mapped Coffee Shop records within 1 km'),
+      findsOneWidget,
+    );
+    await openList(tester);
 
     await scrollTo(tester, find.text(CompetitorResults.emptyMessage));
     expect(
@@ -172,9 +196,10 @@ void main() {
     );
     await pickSiteAndSearch(tester, container);
     await tester.pumpAndSettle();
+    await openList(tester);
 
     await scrollTo(tester, find.text('1 mapped record'));
-    expect(find.text('CACHED'), findsOneWidget);
+    expect(inSheet(find.text('CACHED')), findsOneWidget);
     expect(find.text('LIVE'), findsNothing);
     expect(find.textContaining('Cached copy of a response'), findsOneWidget);
     expect(find.textContaining('3 min ago'), findsOneWidget);
@@ -192,15 +217,18 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    // The map card names the failure and offers a retry right there.
+    expect(find.text('Too many requests (HTTP 429)'), findsOneWidget);
+    await openList(tester, via: 'Details');
 
     await scrollTo(tester, find.text('Use sample demo data'));
-    expect(find.text('Too many requests (HTTP 429)'), findsOneWidget);
+    expect(inSheet(find.text('Too many requests (HTTP 429)')), findsOne);
     expect(find.textContaining('none were retrieved'), findsOneWidget);
 
-    await tester.tap(find.text('Try again'));
+    await tester.tap(inSheet(find.text('Try again')));
     await tester.pump();
     expect(repo.calls, hasLength(2));
-    expect(find.text('Searching OpenStreetMap…'), findsOneWidget);
+    expect(find.text('Searching OpenStreetMap…'), findsWidgets);
   });
 
   testWidgets('sample mode is unmistakably labeled', (tester) async {
@@ -210,15 +238,16 @@ void main() {
       const CompetitorFetchException(CompetitorFailure.network),
     );
     await tester.pumpAndSettle();
+    await openList(tester, via: 'Details');
 
     await scrollTo(tester, find.text('Use sample demo data'));
-    expect(find.text('No connection'), findsOneWidget);
+    expect(inSheet(find.text('No connection')), findsOneWidget);
     await tester.tap(find.text('Use sample demo data'));
     await tester.pumpAndSettle();
 
     await scrollTo(tester, find.textContaining('Fictional places'));
     // Banner title and source badge both read "SAMPLE DEMO DATA".
-    expect(find.text(SampleBanner.title), findsNWidgets(2));
+    expect(inSheet(find.text(SampleBanner.title)), findsNWidgets(2));
     expect(find.textContaining('not real businesses'), findsWidgets);
     expect(find.text('LIVE'), findsNothing);
     expect(find.textContaining('Sample Coffee Shop 1 (demo)'), findsOneWidget);
@@ -240,6 +269,7 @@ void main() {
       resultFor(repo.calls.single.query, [business(1, name: 'Kape Uno')]),
     );
     await tester.pumpAndSettle();
+    await openList(tester);
     await scrollTo(tester, find.text('1. Kape Uno'));
 
     container
@@ -249,6 +279,7 @@ void main() {
 
     expect(find.text('1. Kape Uno'), findsNothing);
     expect(find.text('1 mapped record'), findsNothing);
+    expect(find.text(MapSetupCard.findLabel), findsOneWidget);
     expect(
       container.read(competitorControllerProvider).status,
       CompetitorStatus.idle,
@@ -259,7 +290,6 @@ void main() {
   testWidgets('cancel returns to idle', (tester) async {
     final container = await pumpApp(tester);
     await pickSiteAndSearch(tester, container);
-    await scrollTo(tester, find.text('Cancel'), settle: false);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
@@ -285,6 +315,8 @@ void main() {
       ]),
     );
     await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull, reason: 'map card fits');
+    await openList(tester);
 
     await scrollTo(tester, find.text('Show all 45'));
     await tester.tap(find.text('Show all 45'));

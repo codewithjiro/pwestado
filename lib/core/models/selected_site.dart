@@ -4,17 +4,22 @@ import 'package:flutter/foundation.dart';
 enum SiteSource {
   mapPick('Pinned site'),
   gps('My location (GPS)'),
-  gpsLastKnown('My location (last known GPS fix)');
+  gpsLastKnown('My location (last known GPS fix)'),
+
+  /// Picked from "Search a place or address" results.
+  search('Searched place');
 
   const SiteSource(this.label);
 
   final String label;
 
-  bool get isGps => this != mapPick;
+  bool get isGps => this == gps || this == gpsLastKnown;
 }
 
-/// A candidate business location chosen by the user. Only coordinates are
-/// known; no street address is looked up or invented.
+/// A candidate business location chosen by the user. The coordinates are
+/// the source of truth for analysis and storage. [displayLabel] only says
+/// how the site was chosen; readable place names come from a separate,
+/// display-only lookup and are never stored here.
 @immutable
 class SelectedSite {
   const SelectedSite({

@@ -4,17 +4,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pwestado/app/app.dart';
 import 'package:pwestado/core/models/search_radius.dart';
 import 'package:pwestado/features/analysis/data/site_context_repository.dart';
+import 'package:pwestado/features/comparison/presentation/compare_screen.dart';
 import 'package:pwestado/features/comparison/presentation/comparison_section.dart';
 import 'package:pwestado/features/discovery/data/competitor_repository.dart';
 import 'package:pwestado/features/discovery/domain/competitors.dart';
 import 'package:pwestado/features/explore/data/location_service.dart';
-import 'package:pwestado/features/explore/presentation/widgets/search_panel.dart';
 import 'package:pwestado/features/explore/state/explore_controller.dart';
+import 'package:pwestado/features/places/domain/place.dart';
+import 'package:pwestado/features/places/state/place_providers.dart';
 import 'package:pwestado/features/saved/data/saved_analysis_repository.dart';
 
 import '../fake_saved_analysis_repository.dart';
 import '../fake_competitor_repository.dart';
 import '../fake_location_service.dart';
+import '../fake_place_repository.dart';
 import '../fake_site_context_repository.dart';
 import 'comparison_fixtures.dart';
 
@@ -34,6 +37,12 @@ Future<ProviderContainer> pumpApp(WidgetTester tester) async {
     ProviderScope(
       overrides: [
         locationServiceProvider.overrideWithValue(FakeLocationService()),
+        placeRepositoryProvider.overrideWithValue(
+          FakePlaceRepository()
+            ..labelOf = (p) => PlaceLabel(
+              title: p.latitude == siteA.lat ? 'Near Road A' : 'Near Road B',
+            ),
+        ),
         competitorRepositoryProvider.overrideWithValue(competitors),
         siteContextRepositoryProvider.overrideWithValue(contexts),
         savedAnalysisRepositoryProvider.overrideWithValue(
@@ -44,13 +53,22 @@ Future<ProviderContainer> pumpApp(WidgetTester tester) async {
     ),
   );
   await tester.pumpAndSettle();
+  await tester.tap(
+    find.descendant(
+      of: find.byType(NavigationBar),
+      matching: find.text('COMPARE'),
+    ),
+  );
+  await tester.pumpAndSettle();
   return ProviderScope.containerOf(tester.element(find.byType(PwestadoApp)));
 }
 
-Finder get panelScrollable => find.descendant(
-  of: find.byType(SearchPanel),
-  matching: find.byType(Scrollable),
-);
+Finder get panelScrollable => find
+    .descendant(
+      of: find.byType(CompareScreen),
+      matching: find.byType(Scrollable),
+    )
+    .first;
 
 Future<void> scrollTo(WidgetTester tester, Finder finder) async {
   await tester.scrollUntilVisible(finder, 200, scrollable: panelScrollable);
@@ -93,10 +111,11 @@ void main() {
     tester,
   ) async {
     await pumpApp(tester);
+    expect(find.text('Choose a location on MAPA'), findsOneWidget);
     await scrollTo(tester, find.text(ComparisonSection.title));
     expect(find.text('No site chosen.'), findsNWidgets(2));
     expect(
-      find.textContaining('then tap "Use current pin" for Site A'),
+      find.textContaining('then tap "Use current pin" here for Site A'),
       findsOne,
     );
     expect(find.text(ComparisonSection.analyzeBoth), findsNothing);
@@ -114,8 +133,10 @@ void main() {
       queryAt(siteB),
     ]);
     await scrollTo(tester, find.text('Competitors mapped'));
-    expect(find.text('15.09390, 120.76810'), findsWidgets);
-    expect(find.text('15.10000, 120.77000'), findsWidgets);
+    // Readable place names, not coordinates, label each site.
+    expect(find.text('Near Road A'), findsWidgets);
+    expect(find.text('Near Road B'), findsWidgets);
+    expect(find.text('15.09390, 120.76810'), findsNothing);
     expect(find.text('Coffee Shop · 1 km'), findsNWidgets(2));
     expect(find.text('3 (2 within 250 m)'), findsOneWidget);
     expect(find.text('0 (0 within 250 m)'), findsOneWidget);

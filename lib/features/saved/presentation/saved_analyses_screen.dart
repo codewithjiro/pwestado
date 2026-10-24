@@ -6,6 +6,7 @@ import '../../../app/router.dart';
 import '../../../app/theme.dart';
 import '../../../core/utils/age.dart';
 import '../../../shared/widgets/surfaces.dart';
+import '../../places/state/place_providers.dart';
 import '../domain/saved_analysis.dart';
 import '../state/saved_analyses_controller.dart';
 import 'saved_widgets.dart';
@@ -78,14 +79,25 @@ class SavedAnalysesScreen extends ConsumerWidget {
       );
     }
 
+    // A bottom-navigation tab: no back arrow.
     return Scaffold(
+      backgroundColor: BrandColors.offWhite,
       appBar: AppBar(
-        title: const Text(title),
-        leading: IconButton(
-          tooltip: 'Back to map',
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () =>
-              context.canPop() ? context.pop() : context.go(AppRoutes.explore),
+        toolbarHeight: 64,
+        titleSpacing: AppSpacing.lg,
+        automaticallyImplyLeading: false,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(title),
+            Text(
+              'Stored on this phone · works offline',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: BrandColors.inkMuted),
+            ),
+          ],
         ),
       ),
       body: body,
@@ -97,6 +109,21 @@ class _SavedTile extends ConsumerWidget {
   const _SavedTile({required this.summary});
 
   final SavedAnalysisSummary summary;
+
+  /// A place name only if this session already looked it up (no request:
+  /// the list must open offline and without network traffic); otherwise
+  /// the stored "how chosen" label. Place names are never stored.
+  static String _placeText(WidgetRef ref, SavedAnalysisSummary summary) {
+    final lat = summary.latitude;
+    final lon = summary.longitude;
+    final cached = lat == null || lon == null
+        ? null
+        : ref.read(placeRepositoryProvider).cachedLabel((
+            latitude: lat,
+            longitude: lon,
+          ));
+    return cached?.title ?? summary.siteLabel ?? 'Saved location';
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -168,7 +195,7 @@ class _SavedTile extends ConsumerWidget {
       child: AppCard(
         padding: EdgeInsets.zero,
         child: InkWell(
-          onTap: () => context.push(AppRoutes.savedDetail(summary.id)),
+          onTap: () => context.go(AppRoutes.savedDetail(summary.id)),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
@@ -197,10 +224,7 @@ class _SavedTile extends ConsumerWidget {
                         '${category.label} · ${summary.radius!.label}',
                         style: theme.textTheme.titleSmall,
                       ),
-                      Text(
-                        '${summary.coordinatesLabel} · ${summary.siteLabel}',
-                        style: muted,
-                      ),
+                      Text(_placeText(ref, summary), style: muted),
                       const SizedBox(height: AppSpacing.xs),
                       Wrap(
                         spacing: AppSpacing.xs,

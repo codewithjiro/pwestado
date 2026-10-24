@@ -1,0 +1,86 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": "address.6440964050870288",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     120.76811,
+     15.093944
+    ]
+   },
+   "properties": {
+    "mapbox_id": "address.6440964050870288",
+    "feature_type": "street",
+    "full_address": "Baliwag-Candaba-Santa Ana Road Santa Lucia, Santa Ana, Pampanga, Philippines",
+    "name": "Baliwag-Candaba-Santa Ana Road",
+    "name_preferred": "Baliwag-Candaba-Santa Ana Road",
+    "coordinates": {
+     "longitude": 120.76811,
+     "latitude": 15.093944
+    },
+    "place_formatted": "Santa Lucia, Santa Ana, Pampanga, Philippines",
+    "context": {
+     "street": {
+      "mapbox_id": "address.6440964050870288",
+      "name": "Baliwag-Candaba-Santa Ana Road"
+     },
+     "postcode": {
+      "mapbox_id": "dXJuOm1ieHBsYzpJZzZ6",
+      "name": "2022"
+     },
+     "locality": {
+      "mapbox_id": "dXJuOm1ieHBsYzpGWk9xc3c",
+      "name": "Santa Lucia",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Santa Lucia"
+       }
+      }
+     },
+     "place": {
+      "mapbox_id": "dXJuOm1ieHBsYzpwbWl6",
+      "name": "Santa Ana",
+      "wikidata_id": "Q55727",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Santa Ana"
+       }
+      }
+     },
+     "region": {
+      "mapbox_id": "dXJuOm1ieHBsYzpDQVN6",
+      "name": "Pampanga",
+      "wikidata_id": "Q13870",
+      "region_code": "PAM",
+      "region_code_full": "PH-PAM",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Pampanga"
+       }
+      }
+     },
+     "country": {
+      "mapbox_id": "dXJuOm1ieHBsYzpJck0",
+      "name": "Philippines",
+      "wikidata_id": "Q928",
+      "country_code": "PH",
+      "country_code_alpha_3": "PHL",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Philippines"
+       }
+      }
+     }
+    }
+   }
+  }
+ ],
+ "attribution": "NOTICE: © 2026 Mapbox and its suppliers. All rights reserved. Use of this data is subject to the Mapbox Terms of Service (https://www.mapbox.com/about/maps/). This response and the information it contains may not be retained."
+}

@@ -14,6 +14,7 @@ import '../../discovery/presentation/competitor_results.dart';
 import '../../discovery/presentation/source_labels.dart';
 import '../../explore/presentation/widgets/compare_pin_image.dart';
 import '../../explore/state/explore_controller.dart';
+import '../../places/presentation/site_place_label.dart';
 import '../../saved/presentation/saved_widgets.dart';
 import '../../saved/state/saved_analyses_controller.dart';
 import '../domain/site_comparison.dart';
@@ -94,11 +95,11 @@ class ComparisonSection extends ConsumerWidget {
             if (!slots.hasAnySite || !bothAssigned)
               Text(
                 slots.a.site == null
-                    ? 'Long-press a spot on the map, then tap '
-                          '"$useCurrentPin" for Site A. Pick a second spot '
-                          'for Site B.'
-                    : 'Long-press a different spot on the map, then tap '
-                          '"$useCurrentPin" for Site B.',
+                    ? 'Choose a location on MAPA, then tap '
+                          '"$useCurrentPin" here for Site A. Choose a '
+                          'second location for Site B.'
+                    : 'Choose a different location on MAPA, then tap '
+                          '"$useCurrentPin" here for Site B.',
                 style: _muted(context),
               ),
             if (canAnalyzeBoth) ...[
@@ -317,9 +318,11 @@ class _SlotTile extends ConsumerWidget {
                   ],
                 ),
                 if (site != null)
-                  Text(
-                    '${site.coordinatesLabel} · ${site.displayLabel}',
-                    style: _muted(context),
+                  SitePlaceLabel(
+                    site: site,
+                    titleStyle: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 const SizedBox(height: 2),
                 ...details,
@@ -448,7 +451,17 @@ class ComparisonTable extends StatelessWidget {
                 ),
             ],
           ),
-          row('Location', (s) => s.site?.coordinatesLabel ?? '—'),
+          TableRow(
+            children: [
+              _Cell(Text('Location', style: label)),
+              for (final slot in CompareSlot.values)
+                _Cell(
+                  slots[slot].site == null
+                      ? Text('—', style: value)
+                      : PlaceTitleText(site: slots[slot].site!, style: value),
+                ),
+            ],
+          ),
           row(
             'Settings',
             (s) => ready(s, (a) => settingsLabel(a.competitors.query)),

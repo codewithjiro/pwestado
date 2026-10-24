@@ -91,11 +91,19 @@ class ExploreController extends Notifier<ExploreState> {
     return true;
   }
 
-  /// Pins a site picked on the map.
-  void selectSite({required double latitude, required double longitude}) {
+  /// Pins a site picked on the map (or, with [source], from place search).
+  void selectSite({
+    required double latitude,
+    required double longitude,
+    SiteSource source = SiteSource.mapPick,
+  }) {
     _siteGeneration++;
     state = state.copyWith(
-      site: SelectedSite.at(latitude: latitude, longitude: longitude),
+      site: SelectedSite.at(
+        latitude: latitude,
+        longitude: longitude,
+        source: source,
+      ),
       // A manual pick supersedes any pending GPS request.
       locationStatus: state.locationStatus == LocationStatus.locating
           ? LocationStatus.idle
@@ -138,3 +146,18 @@ class ExploreController extends Notifier<ExploreState> {
 
 final exploreControllerProvider =
     NotifierProvider<ExploreController, ExploreState>(ExploreController.new);
+
+/// "Pick on map" mode: a fixed pin at the map's center, which the user
+/// moves the map under and then confirms. The map reads the coordinate.
+class MapPickMode extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void start() => state = true;
+
+  void stop() => state = false;
+}
+
+final mapPickModeProvider = NotifierProvider<MapPickMode, bool>(
+  MapPickMode.new,
+);

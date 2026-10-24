@@ -12,6 +12,7 @@ import '../../comparison/state/comparison_controller.dart';
 import '../../discovery/domain/competitors.dart';
 import '../../discovery/presentation/source_labels.dart';
 import '../../explore/state/explore_controller.dart';
+import '../../places/presentation/site_place_label.dart';
 import '../domain/saved_analysis.dart';
 import '../state/saved_analyses_controller.dart';
 import 'saved_widgets.dart';
@@ -164,10 +165,12 @@ class _Body extends ConsumerWidget {
               SectionHeader(
                 icon: query.category.icon,
                 title: '${query.category.label} · ${query.radius.label}',
-                subtitle:
-                    '${saved.site.coordinatesLabel} · '
-                    '${saved.site.displayLabel}',
               ),
+              const SizedBox(height: AppSpacing.md),
+              // Looked up when the record is opened; never stored. Offline,
+              // it falls back to "Selected location" with a Retry.
+              SitePlaceLabel(site: saved.site),
+              SiteTechnicalDetails(site: saved.site),
               const SizedBox(height: AppSpacing.lg),
               Text('Reuse this site', style: theme.textTheme.labelLarge),
               const SizedBox(height: AppSpacing.sm),
@@ -202,8 +205,8 @@ class _Body extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Comparison slots keep this saved evidence as-is. Opening the '
-                'site on the map does not search; tap "Find competitors" '
-                'there for current data.',
+                'site on the map does not search; tap "Find nearby '
+                'competitors" there for current data.',
                 style: muted,
               ),
             ],
@@ -238,7 +241,7 @@ class _Body extends ConsumerWidget {
           ),
         ),
       );
-    context.go(AppRoutes.explore);
+    context.go(AppRoutes.compare);
   }
 
   void _openOnMap(BuildContext context, WidgetRef ref) {
@@ -251,8 +254,8 @@ class _Body extends ConsumerWidget {
       ..showSnackBar(
         const SnackBar(
           content: Text(
-            'Saved site placed on the map. Tap "Find competitors" for '
-            'current OpenStreetMap data.',
+            'Saved site placed on the map. Tap "Find nearby competitors" '
+            'for current OpenStreetMap data.',
           ),
         ),
       );

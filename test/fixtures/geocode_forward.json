@@ -1,0 +1,394 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "id": "dXJuOm1ieHBsYzptMml6",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     120.69343,
+     15.027807
+    ]
+   },
+   "properties": {
+    "mapbox_id": "dXJuOm1ieHBsYzptMml6",
+    "feature_type": "place",
+    "full_address": "San Fernando, Pampanga, Philippines",
+    "name": "San Fernando",
+    "name_preferred": "San Fernando",
+    "coordinates": {
+     "longitude": 120.69343,
+     "latitude": 15.027807
+    },
+    "place_formatted": "Pampanga, Philippines",
+    "bbox": [
+     120.598262,
+     15.004127,
+     120.727442,
+     15.135983
+    ],
+    "context": {
+     "region": {
+      "mapbox_id": "dXJuOm1ieHBsYzpDQVN6",
+      "name": "Pampanga",
+      "wikidata_id": "Q13870",
+      "region_code": "PAM",
+      "region_code_full": "PH-PAM",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Pampanga"
+       }
+      }
+     },
+     "country": {
+      "mapbox_id": "dXJuOm1ieHBsYzpJck0",
+      "name": "Philippines",
+      "wikidata_id": "Q928",
+      "country_code": "PH",
+      "country_code_alpha_3": "PHL",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Philippines"
+       }
+      }
+     },
+     "place": {
+      "mapbox_id": "dXJuOm1ieHBsYzptMml6",
+      "name": "San Fernando",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "San Fernando"
+       }
+      },
+      "wikidata_id": "Q55740"
+     }
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "address.125568214800134",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     120.690249,
+     15.072958
+    ]
+   },
+   "properties": {
+    "mapbox_id": "address.125568214800134",
+    "feature_type": "street",
+    "full_address": "San Fernando San Rafael, Mexico, Pampanga, Philippines",
+    "name": "San Fernando",
+    "name_preferred": "San Fernando",
+    "coordinates": {
+     "longitude": 120.690249,
+     "latitude": 15.072958
+    },
+    "place_formatted": "San Rafael, Mexico, Pampanga, Philippines",
+    "context": {
+     "street": {
+      "mapbox_id": "address.125568214800134",
+      "name": "San Fernando"
+     },
+     "postcode": {
+      "mapbox_id": "dXJuOm1ieHBsYzpJZTZ6",
+      "name": "2021"
+     },
+     "locality": {
+      "mapbox_id": "dXJuOm1ieHBsYzpFUHpLc3c",
+      "name": "San Rafael",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "San Rafael"
+       }
+      }
+     },
+     "place": {
+      "mapbox_id": "dXJuOm1ieHBsYzpkRWl6",
+      "name": "Mexico",
+      "wikidata_id": "Q55712",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Mexico"
+       }
+      }
+     },
+     "region": {
+      "mapbox_id": "dXJuOm1ieHBsYzpDQVN6",
+      "name": "Pampanga",
+      "wikidata_id": "Q13870",
+      "region_code": "PAM",
+      "region_code_full": "PH-PAM",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Pampanga"
+       }
+      }
+     },
+     "country": {
+      "mapbox_id": "dXJuOm1ieHBsYzpJck0",
+      "name": "Philippines",
+      "wikidata_id": "Q928",
+      "country_code": "PH",
+      "country_code_alpha_3": "PHL",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Philippines"
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "address.7709669607363428",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     120.72235,
+     15.030444
+    ]
+   },
+   "properties": {
+    "mapbox_id": "address.7709669607363428",
+    "feature_type": "street",
+    "full_address": "Pampanga Circumferential Road Pandaras, San Fernando, Pampanga, Philippines",
+    "name": "Pampanga Circumferential Road",
+    "name_preferred": "Pampanga Circumferential Road",
+    "coordinates": {
+     "longitude": 120.72235,
+     "latitude": 15.030444
+    },
+    "place_formatted": "Pandaras, San Fernando, Pampanga, Philippines",
+    "context": {
+     "street": {
+      "mapbox_id": "address.7709669607363428",
+      "name": "Pampanga Circumferential Road"
+     },
+     "postcode": {
+      "mapbox_id": "dXJuOm1ieHBsYzpIMDZ6",
+      "name": "2000"
+     },
+     "locality": {
+      "mapbox_id": "dXJuOm1ieHBsYzpEWlZxc3c",
+      "name": "Pandaras",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Pandaras"
+       }
+      }
+     },
+     "place": {
+      "mapbox_id": "dXJuOm1ieHBsYzptMml6",
+      "name": "San Fernando",
+      "wikidata_id": "Q55740",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "San Fernando"
+       }
+      }
+     },
+     "region": {
+      "mapbox_id": "dXJuOm1ieHBsYzpDQVN6",
+      "name": "Pampanga",
+      "wikidata_id": "Q13870",
+      "region_code": "PAM",
+      "region_code_full": "PH-PAM",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Pampanga"
+       }
+      }
+     },
+     "country": {
+      "mapbox_id": "dXJuOm1ieHBsYzpJck0",
+      "name": "Philippines",
+      "wikidata_id": "Q928",
+      "country_code": "PH",
+      "country_code_alpha_3": "PHL",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Philippines"
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "address.5274846395838938",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     120.660498,
+     15.072491
+    ]
+   },
+   "properties": {
+    "mapbox_id": "address.5274846395838938",
+    "feature_type": "street",
+    "full_address": "Pampanga Shooter's Firing Range Maimpis, San Fernando, Pampanga, Philippines",
+    "name": "Pampanga Shooter's Firing Range",
+    "name_preferred": "Pampanga Shooter's Firing Range",
+    "coordinates": {
+     "longitude": 120.660498,
+     "latitude": 15.072491
+    },
+    "place_formatted": "Maimpis, San Fernando, Pampanga, Philippines",
+    "context": {
+     "street": {
+      "mapbox_id": "address.5274846395838938",
+      "name": "Pampanga Shooter's Firing Range"
+     },
+     "postcode": {
+      "mapbox_id": "dXJuOm1ieHBsYzpIMDZ6",
+      "name": "2000"
+     },
+     "locality": {
+      "mapbox_id": "dXJuOm1ieHBsYzpDeEhLc3c",
+      "name": "Maimpis",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Maimpis"
+       }
+      }
+     },
+     "place": {
+      "mapbox_id": "dXJuOm1ieHBsYzptMml6",
+      "name": "San Fernando",
+      "wikidata_id": "Q55740",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "San Fernando"
+       }
+      }
+     },
+     "region": {
+      "mapbox_id": "dXJuOm1ieHBsYzpDQVN6",
+      "name": "Pampanga",
+      "wikidata_id": "Q13870",
+      "region_code": "PAM",
+      "region_code_full": "PH-PAM",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Pampanga"
+       }
+      }
+     },
+     "country": {
+      "mapbox_id": "dXJuOm1ieHBsYzpJck0",
+      "name": "Philippines",
+      "wikidata_id": "Q928",
+      "country_code": "PH",
+      "country_code_alpha_3": "PHL",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Philippines"
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "address.303870770414928",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     120.613004,
+     15.224849
+    ]
+   },
+   "properties": {
+    "mapbox_id": "address.303870770414928",
+    "feature_type": "street",
+    "full_address": "San Fernando Avenue Dapdap, Mabalacat, Pampanga, Philippines",
+    "name": "San Fernando Avenue",
+    "name_preferred": "San Fernando Avenue",
+    "coordinates": {
+     "longitude": 120.613004,
+     "latitude": 15.224849
+    },
+    "place_formatted": "Dapdap, Mabalacat, Pampanga, Philippines",
+    "context": {
+     "street": {
+      "mapbox_id": "address.303870770414928",
+      "name": "San Fernando Avenue"
+     },
+     "postcode": {
+      "mapbox_id": "dXJuOm1ieHBsYzpJSTZ6",
+      "name": "2010"
+     },
+     "locality": {
+      "mapbox_id": "dXJuOm1ieHBsYzpCdG5xc3c",
+      "name": "Dapdap",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Dapdap"
+       }
+      }
+     },
+     "place": {
+      "mapbox_id": "dXJuOm1ieHBsYzpZd2l6",
+      "name": "Mabalacat",
+      "wikidata_id": "Q55737",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Mabalacat"
+       }
+      }
+     },
+     "region": {
+      "mapbox_id": "dXJuOm1ieHBsYzpDQVN6",
+      "name": "Pampanga",
+      "wikidata_id": "Q13870",
+      "region_code": "PAM",
+      "region_code_full": "PH-PAM",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Pampanga"
+       }
+      }
+     },
+     "country": {
+      "mapbox_id": "dXJuOm1ieHBsYzpJck0",
+      "name": "Philippines",
+      "wikidata_id": "Q928",
+      "country_code": "PH",
+      "country_code_alpha_3": "PHL",
+      "translations": {
+       "en": {
+        "language": "en",
+        "name": "Philippines"
+       }
+      }
+     }
+    }
+   }
+  }
+ ],
+ "attribution": "NOTICE: © 2026 Mapbox and its suppliers. All rights reserved. Use of this data is subject to the Mapbox Terms of Service (https://www.mapbox.com/about/maps/). This response and the information it contains may not be retained."
+}

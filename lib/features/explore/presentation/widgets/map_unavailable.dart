@@ -31,6 +31,11 @@ class MapUnavailable extends StatelessWidget {
     MapboxTokenStatus.invalid =>
       'The supplied value is not a Mapbox public token (pk.). Rebuild with '
           'a valid public token.',
+    MapboxTokenStatus.malformed =>
+      'The built-in Mapbox token starts with "pk." but is incomplete or '
+          'damaged, so Mapbox would reject it and the map would stay black. '
+          'Copy the full default public token (pk.eyJ…) from your Mapbox '
+          'account and rebuild.',
     MapboxTokenStatus.ok => '',
   };
 

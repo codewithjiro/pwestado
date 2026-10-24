@@ -233,7 +233,7 @@ class SaveAnalysisButton extends ConsumerWidget {
 
     if (savedId != null) {
       return OutlinedButton.icon(
-        onPressed: () => context.push(AppRoutes.savedDetail(savedId)),
+        onPressed: () => context.go(AppRoutes.savedDetail(savedId)),
         icon: const Icon(Icons.bookmark_added, size: 20),
         label: const Text(savedLabel),
       );
@@ -274,7 +274,7 @@ Future<void> saveAnalysis(
             ? null
             : SnackBarAction(
                 label: 'View',
-                onPressed: () => router.push(AppRoutes.savedDetail(id)),
+                onPressed: () => router.go(AppRoutes.savedDetail(id)),
               ),
       ),
     );

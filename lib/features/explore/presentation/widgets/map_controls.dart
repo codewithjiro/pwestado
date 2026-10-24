@@ -7,7 +7,7 @@ import '../../../../core/models/selected_site.dart';
 import '../../data/location_service.dart';
 import '../../state/explore_controller.dart';
 
-/// Floating map buttons that ride just above the bottom sheet: show the
+/// Floating map buttons that ride just above the setup card: show the
 /// selected site, return to Santa Ana, and use the device location.
 ///
 /// Also reports GPS outcomes, because a failed location request must never
@@ -119,26 +119,26 @@ class MapControls extends ConsumerWidget {
     final (String message, SnackBarAction? action) = switch (status) {
       LocationStatus.located => ('Site set to your current location.', null),
       LocationStatus.denied => (
-        'Location permission denied. You can still long-press the map to '
-            'choose a site.',
+        'Location permission denied. You can still search for a place or '
+            'pick a spot on the map.',
         null,
       ),
       LocationStatus.deniedForever => (
         'Location is blocked for PWESTADO. Allow it in app settings, or '
-            'long-press the map to choose a site.',
+            'search for a place instead.',
         SnackBarAction(label: 'Settings', onPressed: service.openAppSettings),
       ),
       LocationStatus.serviceDisabled => (
-        'Device location is turned off. Turn it on, or long-press the map '
-            'to choose a site.',
+        'Device location is turned off. Turn it on, or search for a place '
+            'instead.',
         SnackBarAction(
           label: 'Turn on',
           onPressed: service.openLocationSettings,
         ),
       ),
       LocationStatus.unavailable => (
-        'Could not get a GPS fix. Try again, or long-press the map to '
-            'choose a site.',
+        'Could not get a GPS fix. Try again, or search for a place '
+            'instead.',
         null,
       ),
       LocationStatus.idle || LocationStatus.locating => ('', null),

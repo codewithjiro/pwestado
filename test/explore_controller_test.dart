@@ -172,12 +172,34 @@ void main() {
   });
 
   group('Mapbox token check', () {
-    test('accepts only public pk. tokens', () {
+    // Shaped like a real public token (pk.<base64 JSON>.<signature>) but
+    // made up for this test; it is not a working credential.
+    const wellFormed =
+        'pk.eyJ1IjoiZXhhbXBsZSIsImEiOiJjbGV4YW1wbGUwMDAwIn0.'
+        'AbCdEfGhIjKlMnOpQrStUv';
+
+    test('accepts only well-formed public pk. tokens', () {
       expect(MapboxConfig.checkToken(''), MapboxTokenStatus.missing);
       expect(MapboxConfig.checkToken('   '), MapboxTokenStatus.missing);
       expect(MapboxConfig.checkToken('sk.abc'), MapboxTokenStatus.secret);
       expect(MapboxConfig.checkToken('abc'), MapboxTokenStatus.invalid);
-      expect(MapboxConfig.checkToken('pk.abc'), MapboxTokenStatus.ok);
+      expect(MapboxConfig.checkToken(wellFormed), MapboxTokenStatus.ok);
+      expect(MapboxConfig.checkToken(' $wellFormed '), MapboxTokenStatus.ok);
+    });
+
+    test('rejects pk. values that Mapbox would call malformed', () {
+      // The black-map APK was built with a 20-character "pk." value like
+      // this; Mapbox answers TokenMalformed and every style request 401.
+      expect(
+        MapboxConfig.checkToken('pk.abcdefghij123456'),
+        MapboxTokenStatus.malformed,
+      );
+      expect(MapboxConfig.checkToken('pk.abc'), MapboxTokenStatus.malformed);
+      // Right prefix and parts, but the payload is not base64 JSON.
+      expect(
+        MapboxConfig.checkToken('pk.notjson.signature'),
+        MapboxTokenStatus.malformed,
+      );
     });
 
     test('tests run without a token built in', () {

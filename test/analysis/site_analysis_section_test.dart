@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pwestado/app/app.dart';
 import 'package:pwestado/features/analysis/data/site_context_repository.dart';
+import 'package:pwestado/features/analysis/presentation/analyze_screen.dart';
 import 'package:pwestado/features/analysis/presentation/site_analysis_section.dart';
 import 'package:pwestado/features/discovery/data/competitor_repository.dart';
 import 'package:pwestado/features/discovery/domain/competitors.dart';
 import 'package:pwestado/features/discovery/presentation/competitor_results.dart';
 import 'package:pwestado/features/discovery/state/competitor_controller.dart';
 import 'package:pwestado/features/explore/data/location_service.dart';
-import 'package:pwestado/features/explore/presentation/widgets/search_panel.dart';
 import 'package:pwestado/features/explore/state/explore_controller.dart';
 import 'package:pwestado/features/saved/data/saved_analysis_repository.dart';
 
@@ -50,10 +50,22 @@ Future<ProviderContainer> pumpApp(WidgetTester tester) async {
   return ProviderScope.containerOf(tester.element(find.byType(PwestadoApp)));
 }
 
-Finder get panelScrollable => find.descendant(
-  of: find.byType(SearchPanel),
-  matching: find.byType(Scrollable),
-);
+Finder get panelScrollable => find
+    .descendant(
+      of: find.byType(AnalyzeScreen),
+      matching: find.byType(Scrollable),
+    )
+    .first;
+
+Future<void> openAnalyzeTab(WidgetTester tester) async {
+  await tester.tap(
+    find.descendant(
+      of: find.byType(NavigationBar),
+      matching: find.text('ANALYZE'),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
 
 Future<void> scrollTo(WidgetTester tester, Finder finder) async {
   await tester.scrollUntilVisible(finder, 200, scrollable: panelScrollable);
@@ -69,8 +81,10 @@ Future<void> searchAndAnalyze(
       .read(exploreControllerProvider.notifier)
       .selectSite(latitude: 15.0939, longitude: 120.7681);
   await tester.pumpAndSettle();
-  await scrollTo(tester, find.text('Find competitors'));
-  await tester.tap(find.text('Find competitors'));
+  await openAnalyzeTab(tester);
+  await tester.tap(
+    find.widgetWithText(FilledButton, AnalyzeScreen.findFirstTitle),
+  );
   await tester.pumpAndSettle();
 
   await scrollTo(tester, find.text(SiteAnalysisSection.analyzeLabel));
@@ -84,7 +98,14 @@ Future<void> searchAndAnalyze(
 
 void main() {
   testWidgets('hidden until a competitor search finishes', (tester) async {
-    await pumpApp(tester);
+    final container = await pumpApp(tester);
+    await openAnalyzeTab(tester);
+    expect(find.text(AnalyzeScreen.noSiteTitle), findsOneWidget);
+    container
+        .read(exploreControllerProvider.notifier)
+        .selectSite(latitude: 15.0939, longitude: 120.7681);
+    await tester.pumpAndSettle();
+    expect(find.text('Step 1 · ${AnalyzeScreen.findFirstTitle}'), findsOne);
     expect(find.text(SiteAnalysisSection.title), findsNothing);
   });
 
@@ -193,6 +214,7 @@ void main() {
         .selectSite(latitude: 15.0939, longitude: 120.7681);
     container.read(competitorControllerProvider.notifier).showSample();
     await tester.pumpAndSettle();
+    await openAnalyzeTab(tester);
 
     await scrollTo(tester, find.text(SiteAnalysisSection.analyzeLabel));
     await tester.tap(find.text(SiteAnalysisSection.analyzeLabel));
@@ -222,7 +244,9 @@ void main() {
         .selectSite(latitude: 15.0939, longitude: 120.7681);
     await container.read(competitorControllerProvider.notifier).search();
     await tester.pumpAndSettle();
+    await openAnalyzeTab(tester);
 
+    expect(find.text('Use sample demo data'), findsOneWidget);
     await scrollTo(tester, find.text(SiteAnalysisSection.insufficientData));
     expect(find.text(SiteAnalysisSection.analyzeLabel), findsNothing);
     expect(contexts.calls, isEmpty);
