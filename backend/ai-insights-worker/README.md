@@ -1,5 +1,10 @@
 # PWESTADO AI Insights proxy
 
+> **Not used by the app (October 2026).** For private demos the owner chose to
+> call Gemini directly from the app with a local, untracked key (see the root
+> README). This Worker is kept for reference if the app is ever shared beyond
+> private demos, which would require moving the key back to a server.
+
 A small Cloudflare Worker that lets the PWESTADO app ask Gemini to explain a location analysis **without the Gemini API key ever leaving the server**.
 
 ```

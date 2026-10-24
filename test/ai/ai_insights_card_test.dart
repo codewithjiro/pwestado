@@ -14,7 +14,7 @@ import '../comparison/comparison_fixtures.dart';
 /// Answers from a queue; counts calls. Never touches the network.
 class FakeAiClient extends AiInsightsClient {
   FakeAiClient(this.answers, {this.configured = true})
-    : super(dio: Dio(), endpoint: 'https://ai.example');
+    : super(dio: Dio(), apiKey: 'test-key-not-real-0123456789');
 
   final List<Object> answers;
   final bool configured;

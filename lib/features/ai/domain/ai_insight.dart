@@ -39,7 +39,7 @@ class AiInsight {
   final String model;
   final DateTime generatedAt;
 
-  /// Validates the backend's `{insight, model, demo}` body. Throws
+  /// Validates the `{insight, model, demo}` body built from Gemini's answer. Throws
   /// [FormatException] on any contract violation.
   static AiInsight parse(
     Object? json, {
@@ -82,7 +82,7 @@ class AiInsight {
       watchOuts: points(insight['watchOuts'], 'watchOuts', 3),
       nextSteps: points(insight['nextSteps'], 'nextSteps', 4, min: 1),
       limitations: points(insight['limitations'], 'limitations', 3, min: 1),
-      // Demo status comes from what we sent; the server cannot clear it.
+      // Demo status comes from what we sent; the model cannot clear it.
       isDemo: requestWasDemo || json['demo'] == true,
       model: model is String && model.length <= 64 ? model : 'Gemini',
       generatedAt: now ?? DateTime.now(),
@@ -99,19 +99,22 @@ class AiInsight {
 
 /// Why an AI request did not produce an insight.
 enum AiFailure {
-  /// No AI_INSIGHTS_URL in this build.
+  /// No Gemini API key in `gemini_local_key.dart` for this build.
   notConfigured,
 
-  /// 401/403: this app build is not allowed to use the backend.
+  /// Gemini rejected the API key (invalid, revoked or not permitted).
   unauthorized,
 
-  /// 429 from the per-device rate limit.
+  /// 429: short-window Gemini rate limit.
   rateLimited,
 
-  /// 429 with code `daily_limit`/`quota`: the spending cap was reached.
+  /// Daily or prepaid quota of the API key is used up.
   quotaExhausted,
 
-  /// Backend or model unavailable (5xx).
+  /// 404: the configured Gemini model does not exist or was retired.
+  modelUnavailable,
+
+  /// Gemini unavailable (5xx).
   unavailable,
   timeout,
   offline,
@@ -119,20 +122,25 @@ enum AiFailure {
   /// The answer did not match the contract.
   invalidResponse,
 
-  /// The backend refused the request as invalid (400/413).
+  /// Gemini refused the request as invalid (400).
   badRequest;
 
   /// Whether a "Try again" button makes sense.
   bool get canRetry => switch (this) {
     rateLimited || unavailable || timeout || offline || invalidResponse => true,
-    notConfigured || unauthorized || quotaExhausted || badRequest => false,
+    notConfigured ||
+    unauthorized ||
+    quotaExhausted ||
+    modelUnavailable ||
+    badRequest => false,
   };
 
   String get title => switch (this) {
     notConfigured => 'AI Insights isn’t set up in this version',
-    unauthorized => 'AI Insights isn’t available for this app version',
+    unauthorized => 'Gemini didn’t accept the API key',
     rateLimited => 'Too many AI requests right now',
-    quotaExhausted => 'AI Insights reached today’s limit',
+    quotaExhausted => 'The Gemini API quota is used up',
+    modelUnavailable => 'The AI model isn’t available',
     unavailable => 'AI service is unavailable',
     timeout => 'The AI took too long to answer',
     offline => 'No internet connection',
@@ -143,14 +151,17 @@ enum AiFailure {
   String get message => switch (this) {
     notConfigured =>
       'Your score, map and comparison still work. AI explanations need a '
-          'secure server connection that this build doesn’t have.',
+          'Gemini API key in this private demo build.',
     unauthorized =>
-      'The AI server didn’t accept this app. Your score and evidence are '
-          'unaffected.',
+      'The key in this build is invalid or not allowed to use Gemini. Your '
+          'score and evidence are unaffected.',
     rateLimited => 'Please wait about a minute, then try again.',
     quotaExhausted =>
-      'To keep costs under control, AI Insights has a daily limit. Try again '
-          'tomorrow. Everything else keeps working.',
+      'This API key reached its Gemini quota. Try again later or tomorrow. '
+          'Everything else keeps working.',
+    modelUnavailable =>
+      'Google no longer offers the Gemini model this build uses. Your score '
+          'and evidence are unaffected.',
     unavailable => 'The AI service had a problem. Try again in a moment.',
     timeout => 'Try again in a moment. Your score is already complete.',
     offline => 'Connect to the internet, then try again.',

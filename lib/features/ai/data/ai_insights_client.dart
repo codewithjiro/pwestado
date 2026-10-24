@@ -2,46 +2,54 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/gemini_local_key.dart';
 import '../../discovery/data/overpass_client.dart';
 import '../domain/ai_insight.dart';
+import 'gemini_request.dart';
 
-/// Build-time AI configuration. Neither value is a secret:
-///
-/// * `AI_INSIGHTS_URL` is the public address of the PWESTADO AI proxy
-///   (see `backend/ai-insights-worker`). The Gemini API key lives only in
-///   that server's secret store and is never sent to or stored on phones.
-/// * `AI_CLIENT_ID` is an optional app identifier the proxy can require and
-///   rotate to cut off abuse. Anything inside an APK can be extracted, so
-///   real protection comes from the proxy's rate and spending limits.
+/// PRIVATE-DEMO AI configuration: the app calls the Gemini API directly
+/// with a key compiled in from the untracked `gemini_local_key.dart`
+/// (template: `gemini_local_key.example.dart`). Anyone holding an APK built
+/// this way can extract the key, so such APKs must not be shared.
 abstract final class AiConfig {
-  static const endpoint = String.fromEnvironment('AI_INSIGHTS_URL');
-  static const clientId = String.fromEnvironment('AI_CLIENT_ID');
+  static const apiKey = geminiApiKey;
 
-  static bool get isConfigured => isValidEndpoint(endpoint);
+  /// Stable model; Google recommends 3.5 Flash-Lite for new projects
+  /// (checked against ai.google.dev on 2026-10-24). Override with
+  /// `--dart-define=GEMINI_MODEL=...` if Google retires it.
+  static const model = String.fromEnvironment(
+    'GEMINI_MODEL',
+    defaultValue: 'gemini-3.5-flash-lite',
+  );
 
-  /// Only HTTPS endpoints are accepted, so evidence never travels in clear.
-  static bool isValidEndpoint(String url) {
-    final uri = Uri.tryParse(url.trim());
-    return uri != null && uri.scheme == 'https' && uri.host.isNotEmpty;
-  }
+  static bool get isConfigured => isUsableKey(apiKey);
+
+  /// Shape check only; Gemini itself decides whether the key is valid.
+  static bool isUsableKey(String key) =>
+      key.length >= 20 && !RegExp(r'\s').hasMatch(key);
+
+  static bool isValidModel(String model) =>
+      RegExp(r'^[a-z0-9.\-]{3,64}$').hasMatch(model);
 }
 
-/// Talks to the PWESTADO AI proxy. One request per explicit tap; no
-/// automatic retries (each call can cost money).
+/// Calls Gemini `generateContent` directly. One request per explicit tap;
+/// no automatic retries (each call uses quota). The key travels only in the
+/// `x-goog-api-key` header, never in the URL, and is never logged.
 class AiInsightsClient {
   AiInsightsClient({
     Dio? dio,
-    this.endpoint = AiConfig.endpoint,
-    this.clientId = AiConfig.clientId,
+    this.apiKey = AiConfig.apiKey,
+    this.model = AiConfig.model,
   }) : _dio = dio ?? createAiDio();
 
-  static const path = '/v1/insights';
+  static const baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
 
   final Dio _dio;
-  final String endpoint;
-  final String clientId;
+  final String apiKey;
+  final String model;
 
-  bool get isConfigured => AiConfig.isValidEndpoint(endpoint);
+  bool get isConfigured =>
+      AiConfig.isUsableKey(apiKey) && AiConfig.isValidModel(model);
 
   Future<AiInsight> fetch(
     Map<String, Object?> payload, {
@@ -51,34 +59,44 @@ class AiInsightsClient {
     if (!isConfigured) {
       throw const AiInsightException(AiFailure.notConfigured);
     }
-    final base = endpoint.trim().replaceAll(RegExp(r'/+$'), '');
+    final Map<String, Object?> body;
+    try {
+      body = GeminiRequest.build(payload);
+    } on FormatException {
+      throw const AiInsightException(AiFailure.badRequest);
+    }
     try {
       final response = await _dio.post<Object?>(
-        '$base$path',
-        data: payload,
+        '$baseUrl/models/$model:generateContent',
+        data: body,
         cancelToken: cancelToken,
-        options: Options(
-          headers: {'X-Pwestado-Client': ?(clientId.isEmpty ? null : clientId)},
-        ),
+        options: Options(headers: {'x-goog-api-key': apiKey}),
       );
       try {
-        return AiInsight.parse(response.data, requestWasDemo: isDemo);
+        final answer = GeminiRequest.extractAnswer(response.data);
+        return AiInsight.parse({
+          'insight': answer,
+          'model': model,
+          'demo': isDemo,
+        }, requestWasDemo: isDemo);
       } on FormatException catch (e) {
         debugPrint('AI response rejected: ${e.message}');
         throw const AiInsightException(AiFailure.invalidResponse);
       }
     } on DioException catch (e) {
       if (CancelToken.isCancel(e)) rethrow;
-      throw AiInsightException(
-        classifyAiError(e),
-        statusCode: e.response?.statusCode,
+      final failure = classifyAiError(e);
+      debugPrint(
+        'Gemini request failed: ${failure.name} '
+        '(HTTP ${e.response?.statusCode ?? '-'})',
       );
+      throw AiInsightException(failure, statusCode: e.response?.statusCode);
     }
   }
 }
 
-/// Maps transport and HTTP errors to user-facing failure kinds. Response
-/// bodies are only inspected for the proxy's own `error.code` field.
+/// Maps transport and Gemini HTTP errors to user-facing failure kinds.
+/// Only the error's status/code/reason fields are inspected.
 @visibleForTesting
 AiFailure classifyAiError(DioException e) {
   switch (e.type) {
@@ -91,18 +109,20 @@ AiFailure classifyAiError(DioException e) {
       return AiFailure.offline;
     case DioExceptionType.badResponse:
       final status = e.response?.statusCode ?? 0;
-      final body = e.response?.data;
-      final code = body is Map && body['error'] is Map
-          ? (body['error'] as Map)['code']
-          : null;
+      final signals = _errorSignals(e.response?.data);
+      bool has(String s) => signals.contains(s.toLowerCase());
       return switch (status) {
+        400 when has('api_key_invalid') || has('api key not valid') =>
+          AiFailure.unauthorized,
+        400 when has('failed_precondition') => AiFailure.unauthorized,
         401 || 403 => AiFailure.unauthorized,
-        429 when code == 'daily_limit' || code == 'quota' =>
+        402 => AiFailure.quotaExhausted,
+        404 => AiFailure.modelUnavailable,
+        429 when has('quota_exceeded') || has('perday') =>
           AiFailure.quotaExhausted,
         429 => AiFailure.rateLimited,
         400 || 413 || 422 => AiFailure.badRequest,
-        504 => AiFailure.timeout,
-        502 when code == 'invalid_output' => AiFailure.invalidResponse,
+        408 || 504 => AiFailure.timeout,
         _ => AiFailure.unavailable,
       };
     case DioExceptionType.badCertificate:
@@ -112,11 +132,31 @@ AiFailure classifyAiError(DioException e) {
   }
 }
 
+/// Lower-cased error status, code, reasons, quota ids and message from a
+/// Google API error body, joined for simple `contains` checks.
+String _errorSignals(Object? body) {
+  final error = body is Map ? body['error'] : null;
+  if (error is! Map) return '';
+  final parts = <Object?>[error['status'], error['code'], error['message']];
+  final details = error['details'];
+  if (details is List) {
+    for (final d in details.whereType<Map>()) {
+      parts.add(d['reason']);
+      final violations = d['violations'];
+      if (violations is List) {
+        for (final v in violations.whereType<Map>()) {
+          parts.add(v['quotaId']);
+        }
+      }
+    }
+  }
+  return parts.whereType<Object>().join(' ').toLowerCase();
+}
+
 Dio createAiDio() => Dio(
   BaseOptions(
     connectTimeout: const Duration(seconds: 10),
     sendTimeout: const Duration(seconds: 10),
-    // The proxy gives the model 20 s; allow for the round trip.
     receiveTimeout: const Duration(seconds: 30),
     contentType: Headers.jsonContentType,
     responseType: ResponseType.json,

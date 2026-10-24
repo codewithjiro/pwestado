@@ -19,16 +19,31 @@ $env:MAPBOX_ACCESS_TOKEN="pk.YOUR_PUBLIC_TOKEN"
 flutter run --dart-define="ACCESS_TOKEN=$env:MAPBOX_ACCESS_TOKEN"
 ```
 
-Optional: PWESTADO AI Insights needs the secure proxy in
-`backend/ai-insights-worker` (see its README). Pass only its public URL; the
-Gemini key stays on the server and must never be added to the app:
+### AI Insights (private demo only)
+
+AI Insights calls the Gemini API **directly from the app** with a key compiled
+in from an untracked local file. This is for the owner's private testing and
+demonstrations only: anyone who has an APK built this way can extract the key.
+Do not share such APKs, use a key restricted to the Gemini API with a low
+quota, and rotate it in Google AI Studio if an APK leaves your hands.
+
+The app does not compile until the local key file exists. Create it from the
+tracked template, then paste your key between the quotes in the new file:
 
 ```powershell
-flutter run --dart-define="ACCESS_TOKEN=$env:MAPBOX_ACCESS_TOKEN" `
-  --dart-define="AI_INSIGHTS_URL=https://pwestado-ai-insights.<you>.workers.dev"
+Copy-Item lib/core/config/gemini_local_key.example.dart lib/core/config/gemini_local_key.dart
+git check-ignore -v lib/core/config/gemini_local_key.dart   # must print the .gitignore rule
 ```
 
-Without it, the app shows a clear "not set up" state and everything else works.
+Never commit that file and never put the key in README files, issues,
+screenshots or logs. With an empty key the app shows a clear "not set up"
+state and everything else works. The default model is
+`gemini-3.5-flash-lite`; override it with `--dart-define=GEMINI_MODEL=...` if
+Google retires it. Gemini is called only when you tap "Ask AI to explain",
+and it explains the deterministic 40/30/30 score without changing it.
+
+`backend/ai-insights-worker` is the earlier server-side proxy design. The app
+no longer uses it; it is kept for reference.
 
 ## Design system
 

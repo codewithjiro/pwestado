@@ -72,3 +72,7 @@ secrets/
 backend/**/node_modules/
 backend/**/.wrangler/
 backend/**/.dev.vars
+
+# Private-demo Gemini API key (direct-key AI Insights). Never commit.
+# Copy lib/core/config/gemini_local_key.example.dart to create it.
+lib/core/config/gemini_local_key.dart

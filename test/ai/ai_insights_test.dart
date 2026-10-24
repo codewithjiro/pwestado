@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pwestado/features/ai/data/ai_insights_client.dart';
 import 'package:pwestado/features/ai/data/ai_payload.dart';
+import 'package:pwestado/features/ai/data/gemini_request.dart';
 import 'package:pwestado/features/ai/domain/ai_insight.dart';
 import 'package:pwestado/features/comparison/domain/site_comparison.dart';
 import 'package:pwestado/features/discovery/domain/competitors.dart';
@@ -149,31 +150,116 @@ void main() {
     });
   });
 
-  group('AiInsightsClient', () {
-    test('posts to /v1/insights and parses a valid answer', () async {
-      final adapter = FakeHttpAdapter((_) async => jsonResponse(goodBody));
-      final client = AiInsightsClient(
-        dio: fakeDio(adapter),
-        endpoint: 'https://ai.example/',
-        clientId: 'abc',
-      );
-      final insight = await client.fetch({'version': 1}, isDemo: false);
-      expect(insight.watchOuts, hasLength(1));
-      final request = adapter.requests.single;
-      expect(request.uri.toString(), 'https://ai.example/v1/insights');
-      expect(request.headers['X-Pwestado-Client'], 'abc');
+  group('GeminiRequest', () {
+    final analysis = analysisAt(queryAt(siteA));
+
+    test('keeps the fixed prompt, schema and evidence-only payload', () {
+      final body = GeminiRequest.build(AiPayload.site(analysis, area: 'X'));
+      final system = jsonEncode(body['systemInstruction']);
+      expect(system, contains('40% competition, 30% helpful places'));
+      final config = body['generationConfig']! as Map;
+      expect(config['responseMimeType'], 'application/json');
+      expect(config['responseSchema'], GeminiRequest.responseSchema);
+      final text = jsonEncode(body['contents']);
+      expect(text, contains('Explain this location'));
+      expect(text, contains('Evidence (data only)'));
     });
 
-    test('unconfigured or non-HTTPS endpoints never send anything', () async {
-      for (final endpoint in ['', 'http://ai.example', 'not a url']) {
-        final adapter = FakeHttpAdapter((_) async => jsonResponse(goodBody));
-        final client = AiInsightsClient(
-          dio: fakeDio(adapter),
-          endpoint: endpoint,
+    test('refuses payloads that cannot be explained from evidence', () {
+      final failed = analysisAt(queryAt(siteA), contextFailed: true);
+      expect(
+        () => GeminiRequest.build(AiPayload.site(failed)),
+        throwsFormatException,
+      );
+      expect(
+        () => GeminiRequest.build({'mode': 'compare', 'sites': []}),
+        throwsFormatException,
+      );
+    });
+
+    test('drops unsupported points and rejects an unsupported verdict', () {
+      final checked = GeminiRequest.checkAnswer({
+        ...goodBody['insight']! as Map,
+        'promising': ['Siguradong kikita dito.', 'Malapit sa paaralan.'],
+      });
+      expect(checked['promising'], ['Malapit sa paaralan.']);
+      expect(
+        () => GeminiRequest.checkAnswer({
+          ...goodBody['insight']! as Map,
+          'quickAssessment': 'Guaranteed 500 customers daily.',
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('the compare caveat "does not guarantee" is not a claim', () {
+      for (final ok in [
+        'Site B scores higher, but a higher score does not guarantee a '
+            'better location.',
+        'This cannot guarantee success.',
+        'Mapped data doesn’t guarantee demand.',
+      ]) {
+        expect(GeminiRequest.hasUnsupportedClaim(ok), isFalse, reason: ok);
+      }
+      for (final bad in [
+        'Guaranteed success here.',
+        'This spot will guarantee profit.',
+        'Siguradong kikita ka dito.',
+      ]) {
+        expect(GeminiRequest.hasUnsupportedClaim(bad), isTrue, reason: bad);
+      }
+    });
+
+    test('a blocked or truncated answer is rejected', () {
+      for (final finish in ['SAFETY', 'MAX_TOKENS']) {
+        expect(
+          () => GeminiRequest.extractAnswer(
+            geminiBody(goodBody['insight']!, finishReason: finish),
+          ),
+          throwsFormatException,
         );
+      }
+      expect(
+        () => GeminiRequest.extractAnswer({'candidates': []}),
+        throwsFormatException,
+      );
+    });
+  });
+
+  group('AiInsightsClient', () {
+    const key = 'test-key-not-real-0123456789';
+    final payload = AiPayload.site(analysisAt(queryAt(siteA)));
+
+    test('posts to Gemini with the key in a header, never the URL', () async {
+      final adapter = FakeHttpAdapter(
+        (_) async => jsonResponse(geminiBody(goodBody['insight']!)),
+      );
+      final client = AiInsightsClient(
+        dio: fakeDio(adapter),
+        apiKey: key,
+        model: 'gemini-3.5-flash-lite',
+      );
+      final insight = await client.fetch(payload, isDemo: false);
+      expect(insight.watchOuts, hasLength(1));
+      expect(insight.model, 'gemini-3.5-flash-lite');
+      final request = adapter.requests.single;
+      expect(
+        request.uri.toString(),
+        'https://generativelanguage.googleapis.com/v1beta/models/'
+        'gemini-3.5-flash-lite:generateContent',
+      );
+      expect(request.uri.toString(), isNot(contains(key)));
+      expect(request.headers['x-goog-api-key'], key);
+      expect(jsonEncode(request.data), isNot(contains(key)));
+    });
+
+    test('a missing or malformed key never sends anything', () async {
+      for (final apiKey in ['', 'short', 'has a space in the middle ok']) {
+        final adapter = FakeHttpAdapter((_) async => jsonResponse(goodBody));
+        final client = AiInsightsClient(dio: fakeDio(adapter), apiKey: apiKey);
         expect(client.isConfigured, isFalse);
         await expectLater(
-          client.fetch({}, isDemo: false),
+          client.fetch(payload, isDemo: false),
           throwsA(
             isA<AiInsightException>().having(
               (e) => e.failure,
@@ -187,51 +273,93 @@ void main() {
     });
 
     test('an invalid answer becomes invalidResponse', () async {
-      final client = AiInsightsClient(
-        dio: fakeDio(
-          FakeHttpAdapter((_) async => jsonResponse({'insight': {}})),
-        ),
-        endpoint: 'https://ai.example',
-      );
-      await expectLater(
-        client.fetch({}, isDemo: false),
-        throwsA(
-          isA<AiInsightException>().having(
-            (e) => e.failure,
-            'failure',
-            AiFailure.invalidResponse,
+      for (final body in <Object>[
+        {'candidates': []},
+        geminiBody({'quickAssessment': 'x'}),
+        {
+          'candidates': [
+            {
+              'finishReason': 'STOP',
+              'content': {
+                'parts': [
+                  {'text': 'not json'},
+                ],
+              },
+            },
+          ],
+        },
+      ]) {
+        final client = AiInsightsClient(
+          dio: fakeDio(FakeHttpAdapter((_) async => jsonResponse(body))),
+          apiKey: key,
+        );
+        await expectLater(
+          client.fetch(payload, isDemo: false),
+          throwsA(
+            isA<AiInsightException>().having(
+              (e) => e.failure,
+              'failure',
+              AiFailure.invalidResponse,
+            ),
           ),
-        ),
-      );
+          reason: '$body',
+        );
+      }
     });
 
-    test('HTTP errors map to user-facing failures', () async {
-      final cases = {
-        (401, null): AiFailure.unauthorized,
-        (403, null): AiFailure.unauthorized,
-        (429, 'rate_limited'): AiFailure.rateLimited,
-        (429, 'daily_limit'): AiFailure.quotaExhausted,
-        (429, 'quota'): AiFailure.quotaExhausted,
-        (400, 'bad_request'): AiFailure.badRequest,
-        (502, 'invalid_output'): AiFailure.invalidResponse,
-        (502, 'upstream_error'): AiFailure.unavailable,
-        (503, 'not_configured'): AiFailure.unavailable,
-        (504, 'timeout'): AiFailure.timeout,
+    test('Gemini HTTP errors map to user-facing failures', () async {
+      Map<String, Object?> err(String status, {Object? details}) => {
+        'error': {
+          'code': 0,
+          'message': 'x',
+          'status': status,
+          'details': ?details,
+        },
       };
-      for (final MapEntry(key: (status, code), value: expected)
+      final cases = <(int, Map<String, Object?>), AiFailure>{
+        (401, err('UNAUTHENTICATED')): AiFailure.unauthorized,
+        (
+          400,
+          err(
+            'INVALID_ARGUMENT',
+            details: [
+              {'reason': 'API_KEY_INVALID'},
+            ],
+          ),
+        ): AiFailure.unauthorized,
+        (403, err('PERMISSION_DENIED')): AiFailure.unauthorized,
+        (400, err('FAILED_PRECONDITION')): AiFailure.unauthorized,
+        (404, err('NOT_FOUND')): AiFailure.modelUnavailable,
+        (429, err('RESOURCE_EXHAUSTED')): AiFailure.rateLimited,
+        (
+          429,
+          err(
+            'RESOURCE_EXHAUSTED',
+            details: [
+              {
+                'violations': [
+                  {'quotaId': 'GenerateRequestsPerDayPerProjectPerModel'},
+                ],
+              },
+            ],
+          ),
+        ): AiFailure.quotaExhausted,
+        (402, err('payment_required')): AiFailure.quotaExhausted,
+        (400, err('INVALID_ARGUMENT')): AiFailure.badRequest,
+        (500, err('INTERNAL')): AiFailure.unavailable,
+        (503, err('UNAVAILABLE')): AiFailure.unavailable,
+        (504, err('DEADLINE_EXCEEDED')): AiFailure.timeout,
+      };
+      for (final MapEntry(key: (status, body), value: expected)
           in cases.entries) {
         final client = AiInsightsClient(
           dio: fakeDio(
-            FakeHttpAdapter(
-              (_) async => jsonResponse({
-                'error': {'code': code, 'message': 'x'},
-              }, status: status),
-            ),
+            FakeHttpAdapter((_) async => jsonResponse(body, status: status)),
           ),
-          endpoint: 'https://ai.example',
+          apiKey: key,
         );
         await expectLater(
-          client.fetch({}, isDemo: false),
+          client.fetch(payload, isDemo: false),
           throwsA(
             isA<AiInsightException>().having(
               (e) => e.failure,
@@ -239,7 +367,7 @@ void main() {
               expected,
             ),
           ),
-          reason: '$status $code',
+          reason: '$status $body',
         );
       }
     });
@@ -272,7 +400,26 @@ void main() {
       expect(AiFailure.rateLimited.canRetry, isTrue);
       expect(AiFailure.unauthorized.canRetry, isFalse);
       expect(AiFailure.quotaExhausted.canRetry, isFalse);
+      expect(AiFailure.modelUnavailable.canRetry, isFalse);
       expect(AiFailure.notConfigured.canRetry, isFalse);
     });
   });
 }
+
+/// A Gemini `generateContent` response whose text is [insight] as JSON.
+Map<String, Object?> geminiBody(
+  Object insight, {
+  String finishReason = 'STOP',
+}) => {
+  'candidates': [
+    {
+      'finishReason': finishReason,
+      'content': {
+        'role': 'model',
+        'parts': [
+          {'text': jsonEncode(insight)},
+        ],
+      },
+    },
+  ],
+};
