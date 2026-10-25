@@ -56,11 +56,14 @@ class PlaceSearchController extends Notifier<PlaceSearchState> {
 
   Future<void> search(String rawQuery) async {
     final query = rawQuery.trim();
+    // Cancel first: an older request still in flight must not bring its
+    // results back after the query was cleared or shortened.
+    _cancel?.cancel();
+    _cancel = null;
     if (query.length < 2) {
       state = const PlaceSearchState();
       return;
     }
-    _cancel?.cancel();
     final cancel = _cancel = CancelToken();
     state = PlaceSearchState(status: PlaceSearchStatus.loading, query: query);
 

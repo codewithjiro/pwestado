@@ -8,6 +8,10 @@ import 'package:pwestado/features/ai/presentation/ai_insights_card.dart';
 import 'package:pwestado/features/analysis/data/site_context_repository.dart';
 import 'package:pwestado/features/analysis/presentation/analyze_screen.dart';
 import 'package:pwestado/features/analysis/state/analysis_controller.dart';
+import 'package:pwestado/features/comparison/domain/site_comparison.dart';
+import 'package:pwestado/features/comparison/presentation/compare_screen.dart';
+import 'package:pwestado/features/comparison/presentation/comparison_section.dart';
+import 'package:pwestado/features/comparison/state/comparison_controller.dart';
 import 'package:pwestado/features/discovery/data/competitor_repository.dart';
 import 'package:pwestado/features/discovery/state/competitor_controller.dart';
 import 'package:pwestado/features/explore/data/location_service.dart';
@@ -123,6 +127,34 @@ void main() {
       );
       await tester.pumpAndSettle();
       expectNoLayoutError(tester, 'ANALYZE scrolled');
+
+      // A finished comparison: two slots, the verdict with its reasons,
+      // and the side-by-side table, scrolled to the end.
+      final explore = container.read(exploreControllerProvider.notifier);
+      final comparison = container.read(comparisonControllerProvider.notifier);
+      comparison.assignCurrentSite(CompareSlot.a);
+      explore.selectSite(latitude: 15.1001, longitude: 120.7702);
+      comparison.assignCurrentSite(CompareSlot.b);
+      await comparison.analyzeAll();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(NavigationBar),
+          matching: find.text('COMPARE'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text(ComparisonSection.disclaimer),
+        300,
+        scrollable: find
+            .descendant(
+              of: find.byType(CompareScreen),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.pumpAndSettle();
+      expectNoLayoutError(tester, 'COMPARE with results');
     });
   }
 }

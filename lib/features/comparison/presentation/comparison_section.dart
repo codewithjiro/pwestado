@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/router.dart';
 import '../../../app/theme.dart';
 import '../../../shared/widgets/elapsed_wait.dart';
 import '../../../shared/widgets/surfaces.dart';
@@ -23,22 +25,29 @@ import '../../saved/state/saved_analyses_controller.dart';
 import '../domain/site_comparison.dart';
 import '../state/comparison_controller.dart';
 
-/// Site A / Site B comparison card: two independent slots, their side by
-/// side evidence, and a verdict that ranks scores only when both are
-/// comparable.
+/// First / second location comparison card: two independent slots, one
+/// clear next step, their side by side evidence, and a verdict that ranks
+/// scores only when both are comparable.
 class ComparisonSection extends ConsumerWidget {
   const ComparisonSection({super.key});
 
   static const title = 'Compare two locations';
-  static const useCurrentPin = 'Use map location';
-  static const moveToCurrentPin = 'Move to map location';
-  static const analyzeBoth = 'Analyze both locations';
-  static const notComparable = 'Not comparable yet';
-  static const similarScores = 'Scores are similar';
+  static const compareLabel = 'Compare locations';
+  static const compareAgainLabel = 'Compare again';
+  static const notComparable = 'Can’t compare these yet';
+  static const similarScores = 'The two locations score about the same';
   static const disclaimer =
       'A higher score doesn’t guarantee a better location. It doesn’t '
       'predict sales, customer demand, foot traffic, profit or business '
       'success.';
+
+  /// "Use this as the first location" / "... second location".
+  static String useAs(CompareSlot slot) =>
+      'Use this as the ${slot.title.toLowerCase()}';
+
+  /// "Choose the first location" / "... second location".
+  static String choose(CompareSlot slot) =>
+      'Choose the ${slot.title.toLowerCase()}';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -60,10 +69,15 @@ class ComparisonSection extends ConsumerWidget {
     }
 
     final bothAssigned = slots.a.site != null && slots.b.site != null;
-    final canAnalyzeBoth =
+    // A failed slot has its own "Try again"; the main button is for slots
+    // that were never checked or were checked with older settings.
+    final canCompare =
         bothAssigned &&
         loadingSlot == null &&
-        CompareSlot.values.any((s) => needsAnalysis(slots[s]));
+        CompareSlot.values.any(
+          (s) =>
+              needsAnalysis(slots[s]) && slots[s].status != SlotStatus.failed,
+        );
 
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.lg),
@@ -74,20 +88,19 @@ class ComparisonSection extends ConsumerWidget {
             const SectionHeader(
               icon: Icons.compare_arrows_rounded,
               title: title,
-              subtitle: 'Same business type and radius for both',
+              subtitle: 'Both use the same business type and distance',
             ),
             const SizedBox(height: AppSpacing.md),
-            Text(
-              'Both locations use the same search settings: '
-              '${explore.category.label} · ${explore.radius.label}. Each one '
-              'keeps its own spot and results.',
-              style: _muted(context),
+            _SharedSettings(
+              category: explore.category.label,
+              radius: explore.radius.label,
             ),
             const SizedBox(height: AppSpacing.md),
             for (final slot in CompareSlot.values) ...[
               _SlotTile(
                 slot: slot,
                 state: slots[slot],
+                otherSite: slots[slot.other].site,
                 currentSite: explore.site,
                 needsAnalysis: needsAnalysis(slots[slot]),
                 otherLoading: loadingSlot == slot.other,
@@ -95,38 +108,29 @@ class ComparisonSection extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
             ],
-            // Without a map location the page's guidance card explains
-            // the first step, so don't repeat it here.
-            if (explore.site != null && (!slots.hasAnySite || !bothAssigned))
-              Text(
-                slots.a.site == null
-                    ? 'Choose a location on MAPA, then tap '
-                          '"$useCurrentPin" here for Site A. Then choose a '
-                          'second location for Site B.'
-                    : 'Choose a different location on MAPA, then tap '
-                          '"$useCurrentPin" here for Site B.',
-                style: _muted(context),
+            _NextStep(
+              slots: slots,
+              currentSite: explore.site,
+              canCompare: canCompare,
+              comparedBefore: CompareSlot.values.any(
+                (s) => slots[s].analysis != null,
               ),
-            if (canAnalyzeBoth) ...[
-              const SizedBox(height: AppSpacing.xs),
-              FilledButton.tonalIcon(
-                onPressed: controller.analyzeAll,
-                icon: const Icon(Icons.analytics_outlined),
-                label: const Text(analyzeBoth),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Runs one site at a time and reuses saved results when '
-                'possible. Each new site can take up to a minute.',
-                style: _muted(context),
-                textAlign: TextAlign.center,
-              ),
-            ],
+              controller: controller,
+            ),
             if (bothAssigned) ...[
               const SizedBox(height: AppSpacing.md),
-              ComparisonTable(slots: slots, comparison: comparison),
-              const SizedBox(height: AppSpacing.md),
               _Verdict(slots: slots, comparison: comparison),
+              const SizedBox(height: AppSpacing.md),
+              ComparisonTable(slots: slots, comparison: comparison),
+              const SizedBox(height: AppSpacing.sm),
+              Text(disclaimer, style: _muted(context)),
+              if (CompareSlot.values.any(
+                (s) =>
+                    slots[s].analysis != null && !slots[s].analysis!.isSample,
+              )) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(CompetitorResults.attribution, style: _muted(context)),
+              ],
             ],
             if (slots.a.analysis != null && slots.b.analysis != null) ...[
               const SizedBox(height: AppSpacing.lg),
@@ -153,6 +157,149 @@ class ComparisonSection extends ConsumerWidget {
   }
 }
 
+/// The business type and distance both locations are checked with.
+class _SharedSettings extends StatelessWidget {
+  const _SharedSettings({required this.category, required this.radius});
+
+  final String category;
+  final String radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: context.palette.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$category · within $radius', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 2),
+          Text(
+            'Both locations are checked for this business type, counting '
+            'what is on the map within $radius around each spot. To change '
+            'these, go to MAPA.',
+            style: _muted(context),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The one main action for the comparison's current state, with its
+/// reason when something is still missing.
+class _NextStep extends StatelessWidget {
+  const _NextStep({
+    required this.slots,
+    required this.currentSite,
+    required this.canCompare,
+    required this.comparedBefore,
+    required this.controller,
+  });
+
+  final ComparisonState slots;
+  final SelectedSite? currentSite;
+  final bool canCompare;
+  final bool comparedBefore;
+  final ComparisonController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = currentSite;
+    final empty = slots.a.site == null
+        ? CompareSlot.a
+        : slots.b.site == null
+        ? CompareSlot.b
+        : null;
+
+    if (empty != null) {
+      // Without any map location the page's guidance card explains the
+      // first step, so don't repeat it here.
+      if (current == null && !slots.hasAnySite) return const SizedBox.shrink();
+      final otherSite = slots[empty.other].site;
+      final usable = current != null && current.id != otherSite?.id;
+      if (usable) {
+        return _ActionWithNote(
+          button: FilledButton.icon(
+            onPressed: () => controller.assignCurrentSite(empty),
+            icon: const Icon(Icons.add_location_alt_outlined),
+            label: Text(ComparisonSection.useAs(empty)),
+          ),
+          // Wraps instead of overflowing on narrow screens and large text.
+          note: Wrap(
+            spacing: AppSpacing.xs,
+            children: [
+              Text('Map location:', style: _muted(context)),
+              PlaceTitleText(site: current, style: _muted(context)),
+            ],
+          ),
+        );
+      }
+      return _ActionWithNote(
+        button: FilledButton.tonalIcon(
+          onPressed: () => context.go(AppRoutes.explore),
+          icon: const Icon(Icons.map_outlined),
+          label: Text(ComparisonSection.choose(empty)),
+        ),
+        note: Text(
+          otherSite != null
+              ? 'On MAPA, choose a different spot from the '
+                    '${empty.other.title.toLowerCase()} (search, use your '
+                    'location, or pick on the map), then come back here.'
+              : 'On MAPA, search for a place, use your location, or pick a '
+                    'spot on the map, then come back here.',
+          style: _muted(context),
+        ),
+      );
+    }
+
+    if (!canCompare) return const SizedBox.shrink();
+    return _ActionWithNote(
+      button: FilledButton.icon(
+        onPressed: controller.analyzeAll,
+        icon: const Icon(Icons.compare_arrows_rounded),
+        label: Text(
+          comparedBefore
+              ? ComparisonSection.compareAgainLabel
+              : ComparisonSection.compareLabel,
+        ),
+      ),
+      note: Text(
+        'Checks one location at a time and reuses results you already '
+        'have. Each new check can take up to a minute.',
+        style: _muted(context),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+}
+
+class _ActionWithNote extends StatelessWidget {
+  const _ActionWithNote({required this.button, required this.note});
+
+  final Widget button;
+  final Widget note;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          button,
+          const SizedBox(height: AppSpacing.xs),
+          note,
+        ],
+      ),
+    );
+  }
+}
+
 /// General area (town/province) for the AI request, if already looked up.
 String? _area(WidgetRef ref, SelectedSite? site) => site == null
     ? null
@@ -162,6 +309,7 @@ class _SlotTile extends ConsumerWidget {
   const _SlotTile({
     required this.slot,
     required this.state,
+    required this.otherSite,
     required this.currentSite,
     required this.needsAnalysis,
     required this.otherLoading,
@@ -170,6 +318,7 @@ class _SlotTile extends ConsumerWidget {
 
   final CompareSlot slot;
   final SlotState state;
+  final SelectedSite? otherSite;
   final SelectedSite? currentSite;
   final bool needsAnalysis;
   final bool otherLoading;
@@ -189,14 +338,25 @@ class _SlotTile extends ConsumerWidget {
             (s) => s.savedIds.containsKey(analysis),
           ),
         );
-    final canTakePin = current != null && current.id != site?.id;
+    final saving =
+        analysis != null &&
+        ref.watch(
+          savedAnalysesControllerProvider.select((s) => s.isSaving(analysis)),
+        );
+    // Replacing is offered only with a map location that is in neither
+    // slot; empty slots are filled through the main next-step button.
+    final canReplace =
+        site != null &&
+        current != null &&
+        current.id != site.id &&
+        current.id != otherSite?.id;
 
     final List<Widget> details;
     switch (state.status) {
       case SlotStatus.empty:
-        details = [Text('No location chosen yet.', style: _muted(context))];
+        details = [Text('Not chosen yet.', style: _muted(context))];
       case SlotStatus.pending:
-        details = [Text('Ready to analyze.', style: _muted(context))];
+        details = [Text('Chosen. Not checked yet.', style: _muted(context))];
       case SlotStatus.loading:
         details = [
           Text(
@@ -204,7 +364,9 @@ class _SlotTile extends ConsumerWidget {
             style: _muted(context),
           ),
           const SizedBox(height: AppSpacing.xs),
-          LinearProgressIndicator(semanticsLabel: 'Analyzing ${slot.title}'),
+          LinearProgressIndicator(
+            semanticsLabel: 'Checking ${slot.inSentence}',
+          ),
           const SizedBox(height: AppSpacing.xs),
           const ElapsedWait(),
         ];
@@ -221,6 +383,11 @@ class _SlotTile extends ConsumerWidget {
             ),
           ),
           Text(message, style: _muted(context)),
+          Text(
+            'Try again, or use sample demo data to see how the comparison '
+            'works.',
+            style: _muted(context),
+          ),
         ];
       case SlotStatus.ready:
         details = [
@@ -231,12 +398,12 @@ class _SlotTile extends ConsumerWidget {
           ),
           if (needsAnalysis)
             Text(
-              'Uses different search settings. Update it to compare.',
+              'Checked with different settings. Compare again to update it.',
               style: _muted(context),
             ),
           if (state.reused)
             Text(
-              'Reused from your ANALYZE result. No extra waiting.',
+              'Same result as your ANALYZE tab, so no extra waiting.',
               style: _muted(context),
             ),
           if (savedAt != null)
@@ -256,26 +423,11 @@ class _SlotTile extends ConsumerWidget {
           child: const Text('Cancel'),
         )
       else ...[
-        if (canTakePin)
-          OutlinedButton.icon(
-            style: _compact,
-            onPressed: () => controller.assignCurrentSite(slot),
-            icon: const Icon(Icons.push_pin_outlined, size: 18),
-            label: Text(
-              site == null
-                  ? ComparisonSection.useCurrentPin
-                  : ComparisonSection.moveToCurrentPin,
-            ),
-          ),
-        if (needsAnalysis)
+        if (state.status == SlotStatus.failed)
           FilledButton.tonal(
             style: _compact,
             onPressed: otherLoading ? null : () => controller.analyze(slot),
-            child: Text(
-              state.status == SlotStatus.failed
-                  ? 'Try again'
-                  : 'Analyze ${slot.title}',
-            ),
+            child: const Text('Try again'),
           ),
         if (state.status == SlotStatus.ready &&
             !needsAnalysis &&
@@ -295,9 +447,16 @@ class _SlotTile extends ConsumerWidget {
             !alreadySaved)
           TextButton.icon(
             style: _compact,
-            onPressed: () => saveAnalysis(context, ref, site!, analysis!),
-            icon: const Icon(Icons.bookmark_add_outlined, size: 18),
-            label: const Text('Save'),
+            onPressed: saving
+                ? null
+                : () => saveAnalysis(context, ref, site!, analysis!),
+            icon: saving
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.bookmark_add_outlined, size: 18),
+            label: Text(saving ? 'Saving…' : 'Save'),
           ),
         if (state.status == SlotStatus.failed)
           OutlinedButton.icon(
@@ -306,11 +465,18 @@ class _SlotTile extends ConsumerWidget {
             icon: const Icon(Icons.science_outlined, size: 18),
             label: const Text('Use sample demo data'),
           ),
+        if (canReplace)
+          TextButton.icon(
+            style: _compact,
+            onPressed: () => controller.assignCurrentSite(slot),
+            icon: const Icon(Icons.swap_horiz, size: 18),
+            label: const Text('Replace with map location'),
+          ),
         if (site != null)
           TextButton(
             style: _compact,
             onPressed: () => controller.clear(slot),
-            child: Text('Clear ${slot.letter}'),
+            child: Text('Remove', semanticsLabel: 'Remove ${slot.inSentence}'),
           ),
       ],
     ];
@@ -343,7 +509,18 @@ class _SlotTile extends ConsumerWidget {
                   runSpacing: AppSpacing.xs,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text(slot.title, style: theme.textTheme.titleSmall),
+                    // With a place the name leads and this is a small
+                    // label; without one it is the tile's title.
+                    Text(
+                      site == null ? slot.title : slot.title.toUpperCase(),
+                      style: site == null
+                          ? theme.textTheme.titleSmall
+                          : theme.textTheme.labelSmall?.copyWith(
+                              color: context.palette.brand,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.1,
+                            ),
+                    ),
                     if (analysis != null)
                       SourceBadge(source: analysis.competitors.source),
                     if (state.isSaved) const HistoricalPill(),
@@ -352,9 +529,7 @@ class _SlotTile extends ConsumerWidget {
                 if (site != null)
                   SitePlaceLabel(
                     site: site,
-                    titleStyle: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    titleStyle: theme.textTheme.titleSmall,
                   ),
                 const SizedBox(height: 2),
                 ...details,
@@ -375,7 +550,7 @@ class _SlotTile extends ConsumerWidget {
   }
 }
 
-/// Lettered disc matching the Site A / Site B map pins.
+/// Numbered disc matching the first / second location map pins.
 class SlotBadge extends StatelessWidget {
   const SlotBadge({super.key, required this.slot, this.size = 32});
 
@@ -385,28 +560,31 @@ class SlotBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (background, foreground) = compareSlotColors(slot);
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: background,
-        shape: BoxShape.circle,
-        border: Border.all(color: context.palette.heading, width: 1.5),
-        boxShadow: context.palette.cardShadow,
-      ),
-      child: Text(
-        slot.letter,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-          color: foreground,
-          fontWeight: FontWeight.w900,
+    // Decorative: the slot's title is always shown next to it.
+    return ExcludeSemantics(
+      child: Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: background,
+          shape: BoxShape.circle,
+          border: Border.all(color: context.palette.heading, width: 1.5),
+          boxShadow: context.palette.cardShadow,
+        ),
+        child: Text(
+          slot.badge,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: foreground,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ),
     );
   }
 }
 
-/// Side-by-side evidence for Site A and Site B.
+/// Side-by-side evidence for the first and second location.
 class ComparisonTable extends StatelessWidget {
   const ComparisonTable({
     super.key,
@@ -439,9 +617,9 @@ class ComparisonTable extends StatelessWidget {
       final analysis = s.analysis;
       if (analysis != null) return f(analysis);
       return switch (s.status) {
-        SlotStatus.loading => 'Loading…',
+        SlotStatus.loading => 'Checking…',
         SlotStatus.failed => 'Search failed',
-        _ => 'Not analyzed',
+        _ => 'Not checked yet',
       };
     }
 
@@ -497,11 +675,11 @@ class ComparisonTable extends StatelessWidget {
             ],
           ),
           row(
-            'Settings',
+            'Checked for',
             (s) => ready(s, (a) => settingsLabel(a.competitors.query)),
           ),
           row(
-            'Competitors mapped',
+            'Similar businesses on the map',
             (s) => ready(s, (a) {
               final near = a.competitors.businesses
                   .where(
@@ -516,13 +694,13 @@ class ComparisonTable extends StatelessWidget {
             }),
           ),
           row(
-            'Complementary mapped',
+            'Helpful places on the map',
             (s) => ready(s, (a) {
               final c = a.context?.complementary;
               return c == null ? 'No data' : '${c.count}';
             }),
           ),
-          row('Road proxy', (s) => ready(s, (a) => _roadText(a))),
+          row('Nearest mapped road', (s) => ready(s, (a) => _roadText(a))),
           TableRow(
             children: [
               _Cell(Text('Suitability score', style: label)),
@@ -541,15 +719,15 @@ class ComparisonTable extends StatelessWidget {
             ],
           ),
           row(
-            'Retrieved',
+            'Map data from',
             (s) => ready(s, (a) {
               final competitors = formatFetchedAt(
                 context,
                 a.competitors.fetchedAt,
               );
               final siteContext = a.context;
-              if (siteContext == null) return 'Competitors $competitors';
-              return 'Competitors $competitors\nContext '
+              if (siteContext == null) return 'Businesses $competitors';
+              return 'Businesses $competitors\nPlaces & roads '
                   '${formatFetchedAt(context, siteContext.fetchedAt)}';
             }),
           ),
@@ -567,7 +745,7 @@ class ComparisonTable extends StatelessWidget {
     }
     final major = roads.nearestMajorRoadMeters;
     return 'Road ${formatDistance(nearest)}'
-        '${major == null ? '' : '; major ${formatDistance(major)}'}';
+        '${major == null ? '' : '; major road ${formatDistance(major)}'}';
   }
 }
 
@@ -610,7 +788,7 @@ class _ScoreCell extends StatelessWidget {
           ),
           if (highlighted)
             Text(
-              'Higher suitability score',
+              'Higher score',
               style: theme.textTheme.labelSmall?.copyWith(
                 color: context.palette.brand,
                 fontWeight: FontWeight.w700,
@@ -635,12 +813,12 @@ class _SourceCell extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SourceText('Competitors', analysis.competitors.source),
+        _SourceText('Businesses', analysis.competitors.source),
         const SizedBox(height: AppSpacing.xs),
         if (siteContext != null)
-          _SourceText('Context', siteContext.source)
+          _SourceText('Places & roads', siteContext.source)
         else
-          Text('Context: request failed', style: _muted(context)),
+          Text('Places & roads: couldn’t load', style: _muted(context)),
       ],
     );
   }
@@ -676,6 +854,8 @@ class _SourceText extends StatelessWidget {
   }
 }
 
+/// The comparison in plain language: which location scores higher and
+/// why, or what still blocks a fair comparison.
 class _Verdict extends StatelessWidget {
   const _Verdict({required this.slots, required this.comparison});
 
@@ -685,16 +865,13 @@ class _Verdict extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final higher = comparison.higher;
-    final anyReal = CompareSlot.values.any(
-      (s) => slots[s].analysis != null && !slots[s].analysis!.isSample,
-    );
 
     final Widget headline;
     if (comparison.blockedBy(ComparisonBlockerKind.missingAnalysis) &&
         comparison.blockers.length == 1) {
       headline = InfoNote(
         icon: Icons.hourglass_empty,
-        title: 'Waiting for both analyses',
+        title: 'Waiting for both results',
         lines: [comparison.blockers.single.message],
       );
     } else if (!comparison.isComparable) {
@@ -705,14 +882,19 @@ class _Verdict extends StatelessWidget {
         tone: NoteTone.danger,
       );
     } else if (higher == null) {
+      final a = slots.a.analysis!;
+      final b = slots.b.analysis!;
       headline = InfoNote(
         icon: Icons.drag_handle_rounded,
         title: ComparisonSection.similarScores,
         lines: [
-          '${_scoreText(slots.a.analysis!.score.total)} vs '
-              '${_scoreText(slots.b.analysis!.score.total)}: within '
-              '${ComparisonRules.similarScorePoints.round()} points, which '
-              'this simple score can’t meaningfully separate.',
+          '${_scoreText(a.score.total)} vs ${_scoreText(b.score.total)}: '
+              'less than ${ComparisonRules.similarScorePoints.round()} points '
+              'apart, which this simple score can’t meaningfully separate.',
+          ..._reasonLines(
+            criterionDifferences(a, b),
+            'Where the first location differs:',
+          ),
         ],
       );
     } else {
@@ -720,12 +902,15 @@ class _Verdict extends StatelessWidget {
       final loser = slots[higher.other].analysis!;
       headline = InfoNote(
         icon: Icons.trending_up_rounded,
-        title: '${higher.title} has the higher suitability score',
+        title: higherTitle(higher),
         lines: [
           '${_scoreText(winner.score.total)} vs '
               '${_scoreText(loser.score.total)} '
               '(+${comparison.difference!.abs().toStringAsFixed(1)} points) '
               'for ${settingsLabel(winner.competitors.query)}.',
+          ..._reasonLines(criterionDifferences(winner, loser), 'Why:'),
+          'This only reflects what is mapped on OpenStreetMap. Visit both '
+              'spots before deciding.',
         ],
         tone: NoteTone.positive,
       );
@@ -747,14 +932,43 @@ class _Verdict extends StatelessWidget {
             tone: NoteTone.warning,
           ),
         ],
-        const SizedBox(height: AppSpacing.sm),
-        Text(ComparisonSection.disclaimer, style: _muted(context)),
-        if (anyReal) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(CompetitorResults.attribution, style: _muted(context)),
-        ],
       ],
     );
+  }
+
+  /// "The second location scores higher on the map".
+  static String higherTitle(CompareSlot slot) =>
+      '${slot.title} scores higher on the map';
+
+  /// One line per criterion gap, from the named location's point of view.
+  static List<String> _reasonLines(
+    List<CriterionDifference> differences,
+    String heading,
+  ) {
+    if (differences.isEmpty) return const [];
+    return [
+      heading,
+      for (final d in differences)
+        '• ${_reasonText(d)} '
+            '(${d.points > 0 ? '+' : '−'}${d.points.abs().toStringAsFixed(1)} '
+            'points)',
+    ];
+  }
+
+  static String _reasonText(CriterionDifference d) {
+    final gains = d.points > 0;
+    return switch (d.criterion) {
+      Criterion.competitorProximity =>
+        gains
+            ? 'Fewer similar businesses mapped nearby'
+            : 'More similar businesses mapped nearby',
+      Criterion.complementary =>
+        gains
+            ? 'More helpful places (schools, markets, banks…) mapped nearby'
+            : 'Fewer helpful places mapped nearby',
+      Criterion.roadAccess =>
+        gains ? 'Closer to mapped roads' : 'Farther from mapped roads',
+    };
   }
 }
 
@@ -767,9 +981,9 @@ class _Panel extends StatelessWidget {
   Widget build(BuildContext context) => AppCard(child: child);
 }
 
-/// "64 / 100" or "Insufficient data".
+/// "64 / 100" or "No score yet".
 String _scoreText(double? total) =>
-    total == null ? 'Insufficient data' : '${total.round()} / 100';
+    total == null ? 'No score yet' : '${total.round()} / 100';
 
 TextStyle? _muted(BuildContext context) => mutedSmall(context);
 

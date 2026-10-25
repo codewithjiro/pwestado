@@ -5,18 +5,25 @@ import '../../../core/models/search_radius.dart';
 import '../../../core/utils/age.dart';
 import '../../../core/utils/geo.dart';
 import '../../analysis/domain/site_analysis.dart';
+import '../../analysis/domain/suitability_scoring.dart';
 import '../../discovery/domain/competitors.dart';
 
-/// The two comparison slots.
+/// The two comparison slots, shown to users as the first and second
+/// location.
 enum CompareSlot {
-  a('A'),
-  b('B');
+  a('1', 'First location'),
+  b('2', 'Second location');
 
-  const CompareSlot(this.letter);
+  const CompareSlot(this.badge, this.title);
 
-  final String letter;
+  /// Short marker on the map pin and the slot badge.
+  final String badge;
 
-  String get title => 'Site $letter';
+  /// "First location" / "Second location".
+  final String title;
+
+  /// [title] for use inside a sentence: "the first location".
+  String get inSentence => 'the ${title.toLowerCase()}';
 
   CompareSlot get other => this == a ? b : a;
 }
@@ -56,7 +63,7 @@ abstract final class ComparisonRules {
   static const staleAfter = Duration(minutes: 15);
 }
 
-/// The outcome of comparing Site A and Site B.
+/// The outcome of comparing the first and second location.
 @immutable
 class SiteComparison {
   const SiteComparison({
@@ -111,14 +118,15 @@ SiteComparison compareSites({
 
   if (a == null || b == null) {
     final missing = [
-      if (a == null) CompareSlot.a.title,
-      if (b == null) CompareSlot.b.title,
+      if (a == null) CompareSlot.a,
+      if (b == null) CompareSlot.b,
     ];
     blockers.add(
       ComparisonBlocker(
         ComparisonBlockerKind.missingAnalysis,
-        '${missing.join(' and ')} ${missing.length == 1 ? 'has' : 'have'} '
-        'not been analyzed yet.',
+        missing.length == 2
+            ? 'Neither location has been checked yet.'
+            : '${missing.single.title} hasn’t been checked yet.',
       ),
     );
     return SiteComparison(blockers: blockers, warnings: warnings);
@@ -137,8 +145,8 @@ SiteComparison compareSites({
     blockers.add(
       ComparisonBlocker(
         ComparisonBlockerKind.sameSite,
-        'Site A and Site B are the same location '
-        '(${formatDistance(apart)} apart). Pick a different spot for one of '
+        'The first and second locations are the same spot '
+        '(${formatDistance(apart)} apart). Choose a different spot for one of '
         'them.',
       ),
     );
@@ -148,23 +156,26 @@ SiteComparison compareSites({
     blockers.add(
       ComparisonBlocker(
         ComparisonBlockerKind.settingsMismatch,
-        'The sites were analyzed with different settings '
-        '(${settingsLabel(qa)} vs ${settingsLabel(qb)}). Update both '
-        'locations using the same search settings.',
+        'The two locations were checked with different settings '
+        '(${settingsLabel(qa)} vs ${settingsLabel(qb)}). Check both again '
+        'with the same business type and search distance.',
       ),
     );
   }
 
   final outdated = [
     for (final (slot, query) in [(CompareSlot.a, qa), (CompareSlot.b, qb)])
-      if (query.category != category || query.radius != radius) slot.title,
+      if (query.category != category || query.radius != radius) slot,
   ];
   if (outdated.isNotEmpty) {
+    final which = outdated.length == 2
+        ? 'both locations'
+        : outdated.single.inSentence;
     blockers.add(
       ComparisonBlocker(
         ComparisonBlockerKind.settingsChanged,
         'Search settings changed to ${category.label} · ${radius.label}. '
-        'Update ${outdated.join(' and ')} using the same search settings.',
+        'Check $which again with these settings.',
       ),
     );
   }
@@ -174,23 +185,27 @@ SiteComparison compareSites({
     blockers.add(
       ComparisonBlocker(
         ComparisonBlockerKind.mixedSources,
-        '${sample.title} uses SAMPLE DEMO DATA and ${sample.other.title} uses '
-        'real OpenStreetMap data. Sample and real results can’t be compared.',
+        '${sample.title} uses SAMPLE DEMO DATA and ${sample.other.inSentence} '
+        'uses real OpenStreetMap data. Sample and real results can’t be '
+        'compared.',
       ),
     );
   }
 
   final insufficient = [
-    if (!a.score.hasTotal) CompareSlot.a.title,
-    if (!b.score.hasTotal) CompareSlot.b.title,
+    if (!a.score.hasTotal) CompareSlot.a,
+    if (!b.score.hasTotal) CompareSlot.b,
   ];
   if (insufficient.isNotEmpty) {
     blockers.add(
       ComparisonBlocker(
         ComparisonBlockerKind.insufficientData,
-        '${insufficient.join(' and ')} ${insufficient.length == 1 ? 'has' : 'have'} '
-        'no total score yet because some information couldn’t be retrieved. '
-        'Try updating it again.',
+        insufficient.length == 2
+            ? 'Neither location has a total score yet, because some map '
+                  'information couldn’t be retrieved. Try checking them again.'
+            : '${insufficient.single.title} has no total score yet, because '
+                  'some map information couldn’t be retrieved. Try checking '
+                  'it again.',
       ),
     );
   }
@@ -204,7 +219,7 @@ SiteComparison compareSites({
   for (final slot in CompareSlot.values) {
     if (saved.contains(slot)) {
       warnings.add(
-        '${slot.title} is a saved analysis. Its information is from when it '
+        '${slot.title} is a saved result. Its information is from when it '
         'was saved, not today.',
       );
     }
@@ -214,8 +229,8 @@ SiteComparison compareSites({
     final age = now.difference(oldestFetch(analysis));
     if (age > ComparisonRules.staleAfter) {
       warnings.add(
-        '${slot.title} evidence was retrieved ${formatAge(age)} ago. '
-        'Update it for the latest OpenStreetMap data.',
+        'Map data for ${slot.inSentence} was retrieved ${formatAge(age)} ago. '
+        'Refresh it for the latest OpenStreetMap data.',
       );
     }
   }
@@ -238,6 +253,39 @@ SiteComparison compareSites({
     difference: (difference * 10).round() / 10,
     sampleOnly: a.isSample && b.isSample,
   );
+}
+
+/// How much one criterion adds to one location's total compared with the
+/// other's, in points of the 0..100 total. Positive: the first-named
+/// location gains points there.
+@immutable
+class CriterionDifference {
+  const CriterionDifference(this.criterion, this.points);
+
+  final Criterion criterion;
+  final double points;
+}
+
+/// The per-criterion reasons behind a score gap between [from] and
+/// [other], largest first. Criteria without data on either side, and gaps
+/// under half a point, are left out: they explain nothing.
+List<CriterionDifference> criterionDifferences(
+  SiteAnalysis from,
+  SiteAnalysis other,
+) {
+  final differences = <CriterionDifference>[];
+  for (final result in from.score.criteria) {
+    final mine = result.contribution;
+    final theirs = other.score.criteria
+        .firstWhere((c) => c.criterion == result.criterion)
+        .contribution;
+    if (mine == null || theirs == null) continue;
+    final points = ((mine - theirs) * 10).round() / 10;
+    if (points.abs() < 0.5) continue;
+    differences.add(CriterionDifference(result.criterion, points));
+  }
+  differences.sort((x, y) => y.points.abs().compareTo(x.points.abs()));
+  return differences;
 }
 
 /// "Coffee Shop · 1 km".

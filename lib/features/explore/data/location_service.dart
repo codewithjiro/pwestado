@@ -47,19 +47,42 @@ abstract interface class LocationService {
 }
 
 class GeolocatorLocationService implements LocationService {
-  const GeolocatorLocationService();
+  /// [platform] is injectable for tests; the app uses the plugin instance.
+  GeolocatorLocationService({GeolocatorPlatform? platform})
+    : _platform = platform ?? GeolocatorPlatform.instance;
+
+  final GeolocatorPlatform _platform;
 
   static const _fixTimeout = Duration(seconds: 20);
 
+  /// Any plugin call can throw (a platform error, a permission request
+  /// already running, a failing cached-fix lookup). Everything that is not
+  /// already a [LocationFailureException] becomes one here, so callers only
+  /// ever see the documented failure type.
   @override
   Future<GeoFix> getCurrentFix() async {
-    if (!await Geolocator.isLocationServiceEnabled()) {
+    try {
+      return await _getCurrentFix();
+    } on LocationFailureException {
+      rethrow;
+    } on LocationServiceDisabledException {
+      throw const LocationFailureException(LocationFailure.serviceDisabled);
+    } on PermissionDeniedException {
+      throw const LocationFailureException(LocationFailure.denied);
+    } catch (e) {
+      debugPrint('Location request failed: ${e.runtimeType}');
+      throw const LocationFailureException(LocationFailure.unavailable);
+    }
+  }
+
+  Future<GeoFix> _getCurrentFix() async {
+    if (!await _platform.isLocationServiceEnabled()) {
       throw const LocationFailureException(LocationFailure.serviceDisabled);
     }
 
-    var permission = await Geolocator.checkPermission();
+    var permission = await _platform.checkPermission();
     if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+      permission = await _platform.requestPermission();
     }
     switch (permission) {
       case LocationPermission.deniedForever:
@@ -73,7 +96,7 @@ class GeolocatorLocationService implements LocationService {
     }
 
     try {
-      final position = await Geolocator.getCurrentPosition(
+      final position = await _platform.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
           timeLimit: _fixTimeout,
@@ -81,16 +104,14 @@ class GeolocatorLocationService implements LocationService {
       );
       return _toFix(position);
     } on TimeoutException {
-      final last = await Geolocator.getLastKnownPosition();
+      // The cached fix is a fallback only; its own failure means "no fix".
+      Position? last;
+      try {
+        last = await _platform.getLastKnownPosition();
+      } catch (e) {
+        debugPrint('Last known location unavailable: ${e.runtimeType}');
+      }
       if (last != null) return _toFix(last, isLastKnown: true);
-      throw const LocationFailureException(LocationFailure.unavailable);
-    } on LocationServiceDisabledException {
-      throw const LocationFailureException(LocationFailure.serviceDisabled);
-    } on PermissionDeniedException {
-      throw const LocationFailureException(LocationFailure.denied);
-    } on LocationFailureException {
-      rethrow;
-    } catch (_) {
       throw const LocationFailureException(LocationFailure.unavailable);
     }
   }
@@ -104,18 +125,34 @@ class GeolocatorLocationService implements LocationService {
 
   @override
   Future<bool> hasPermission() async {
-    final permission = await Geolocator.checkPermission();
-    return permission == LocationPermission.whileInUse ||
-        permission == LocationPermission.always;
+    try {
+      final permission = await _platform.checkPermission();
+      return permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
-  Future<bool> openAppSettings() => Geolocator.openAppSettings();
+  Future<bool> openAppSettings() async {
+    try {
+      return await _platform.openAppSettings();
+    } catch (_) {
+      return false;
+    }
+  }
 
   @override
-  Future<bool> openLocationSettings() => Geolocator.openLocationSettings();
+  Future<bool> openLocationSettings() async {
+    try {
+      return await _platform.openLocationSettings();
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
 final locationServiceProvider = Provider<LocationService>(
-  (ref) => const GeolocatorLocationService(),
+  (ref) => GeolocatorLocationService(),
 );

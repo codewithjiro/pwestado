@@ -53,7 +53,7 @@ void main() {
     );
     expect(fresh.warnings.where((w) => w.contains('historical')), isEmpty);
     expect(
-      withSaved.warnings.where((w) => w.contains('Site A is a saved')),
+      withSaved.warnings.where((w) => w.contains('First location is a saved')),
       hasLength(1),
     );
     expect(withSaved.isComparable, isTrue, reason: 'still comparable');
@@ -106,7 +106,7 @@ void main() {
       expect(comparison.isComparable, isTrue);
       expect(comparison.higher, CompareSlot.b);
       expect(
-        comparison.warnings.where((w) => w.contains('is a saved analysis')),
+        comparison.warnings.where((w) => w.contains('is a saved result')),
         hasLength(1),
       );
       expect(

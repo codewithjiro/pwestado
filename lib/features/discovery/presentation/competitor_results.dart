@@ -30,8 +30,7 @@ void openCompetitorDetails(
 class CompetitorResults extends ConsumerStatefulWidget {
   const CompetitorResults({super.key});
 
-  static const emptyMessage =
-      'No businesses found on the map within this radius.';
+  static const emptyMessage = 'None listed on the map within this distance.';
   static const coverageNote =
       'Only businesses listed on OpenStreetMap appear. Some may be missing '
       'or out of date, so this isn’t a complete list and doesn’t show how '
@@ -214,7 +213,8 @@ class _ErrorView extends StatelessWidget {
           Text(message, style: theme.textTheme.bodySmall),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Nothing is shown, because no results came back.',
+            'Nothing is shown because no results came back. Try again, '
+            'or use sample demo data to see how the app works.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: context.palette.textSecondary,
             ),
@@ -287,10 +287,12 @@ class _EmptyView extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'OpenStreetMap lists no ${query.category.label.toLowerCase()} '
-                      'businesses within ${query.radius.label}. Some may '
-                      'exist but not be on the map yet. Try a larger radius '
-                      'or another spot.',
+                      'OpenStreetMap lists no '
+                      '${query.category.label.toLowerCase()} businesses '
+                      'within ${query.radius.label} around this spot. That '
+                      'doesn’t mean there are none: many real businesses '
+                      'aren’t on the map yet. Check the area in person, or '
+                      'try a larger distance.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: context.palette.textSecondary,
                       ),

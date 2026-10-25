@@ -83,7 +83,7 @@ void main() {
       expect(result.isComparable, isFalse);
       expect(result.higher, isNull);
       expect(result.blockedBy(ComparisonBlockerKind.missingAnalysis), isTrue);
-      expect(result.blockers.single.message, contains('Site B'));
+      expect(result.blockers.single.message, contains('Second location'));
     });
 
     test('the same location twice is rejected', () {
@@ -124,7 +124,10 @@ void main() {
       final result = compare(a, b, radius: SearchRadius.km2);
       expect(result.blockedBy(ComparisonBlockerKind.settingsMismatch), isFalse);
       expect(result.blockedBy(ComparisonBlockerKind.settingsChanged), isTrue);
-      expect(result.blockers.single.message, contains('Site A and Site B'));
+      expect(
+        result.blockers.single.message,
+        contains('Check both locations again'),
+      );
       expect(result.higher, isNull);
     });
 
@@ -153,7 +156,7 @@ void main() {
 
       final result = compare(a, b);
       expect(result.blockedBy(ComparisonBlockerKind.insufficientData), isTrue);
-      expect(result.blockers.single.message, contains('Site A'));
+      expect(result.blockers.single.message, contains('First location'));
       expect(result.higher, isNull);
       expect(result.difference, isNull);
     });
@@ -168,7 +171,10 @@ void main() {
       final b = analysisAt(queryAt(siteB), businesses: const []);
       final result = compare(a, b);
       expect(result.isComparable, isTrue);
-      expect(result.warnings.single, contains('Site A evidence'));
+      expect(
+        result.warnings.single,
+        contains('Map data for the first location'),
+      );
       expect(result.warnings.single, contains('40 min ago'));
     });
 

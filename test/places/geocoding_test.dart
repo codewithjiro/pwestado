@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -234,6 +235,20 @@ void main() {
       await controller().search(' a ');
       expect(state().status, PlaceSearchStatus.idle);
       expect(places.searches, isEmpty);
+    });
+
+    test('shortening the query drops a slower earlier search', () async {
+      final slow = places.pendingSearch = Completer<List<PlaceResult>>();
+      final first = controller().search('San Fernando');
+      expect(state().status, PlaceSearchStatus.loading);
+
+      await controller().search('S');
+      expect(state().status, PlaceSearchStatus.idle);
+
+      slow.complete([FakePlaceRepository.sanFernando]);
+      await first;
+      expect(state().status, PlaceSearchStatus.idle);
+      expect(state().results, isEmpty);
     });
 
     test('lists results, then choosing one sets the site', () async {

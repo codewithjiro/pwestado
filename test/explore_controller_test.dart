@@ -169,6 +169,40 @@ void main() {
       expect(state().locationStatus, LocationStatus.idle);
     });
 
+    test('an unexpected error ends Locating with a failure', () async {
+      location.error = StateError('plugin crashed');
+      await controller().useMyLocation();
+      expect(state().locationStatus, LocationStatus.unavailable);
+    });
+
+    test('clearing the site during a GPS request ends Locating', () async {
+      location.pending = Completer<GeoFix>();
+      final request = controller().useMyLocation();
+      expect(state().locationStatus, LocationStatus.locating);
+
+      controller().clearSite();
+      expect(state().locationStatus, LocationStatus.idle);
+
+      // The late answer must not bring a site back.
+      location.pending!.complete(
+        const GeoFix(latitude: 1, longitude: 2, accuracyMeters: 5),
+      );
+      await request;
+      expect(state().site, isNull);
+      expect(state().locationStatus, LocationStatus.idle);
+
+      // And a new request is possible right away.
+      location
+        ..pending = null
+        ..fix = const GeoFix(
+          latitude: 15.1,
+          longitude: 120.7,
+          accuracyMeters: 5,
+        );
+      await controller().useMyLocation();
+      expect(state().locationStatus, LocationStatus.located);
+    });
+
     test('a second tap while locating is ignored', () async {
       location.pending = Completer<GeoFix>();
       final first = controller().useMyLocation();

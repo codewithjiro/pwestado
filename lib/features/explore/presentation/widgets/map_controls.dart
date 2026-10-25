@@ -80,7 +80,7 @@ class MapControls extends ConsumerWidget {
             children: [
               if (mapAvailable && site != null) ...[
                 _MapButton(
-                  tooltip: 'Show selected site',
+                  tooltip: 'Show chosen location',
                   icon: Icons.place,
                   onPressed: () => onShowSite(site),
                 ),
@@ -117,7 +117,7 @@ class MapControls extends ConsumerWidget {
   ) {
     final service = ref.read(locationServiceProvider);
     final (String message, SnackBarAction? action) = switch (status) {
-      LocationStatus.located => ('Site set to your current location.', null),
+      LocationStatus.located => ('Location set to where you are now.', null),
       LocationStatus.denied => (
         'Location permission denied. You can still search for a place or '
             'pick a spot on the map.',
@@ -137,8 +137,8 @@ class MapControls extends ConsumerWidget {
         ),
       ),
       LocationStatus.unavailable => (
-        'Could not get a GPS fix. Try again, or search for a place '
-            'instead.',
+        'Couldn’t find your location. Try again outdoors, or search for '
+            'a place or pick a spot on the map instead.',
         null,
       ),
       LocationStatus.idle || LocationStatus.locating => ('', null),

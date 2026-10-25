@@ -9,6 +9,7 @@ import '../../../../core/models/business_category.dart';
 import '../../../../core/models/selected_site.dart';
 import '../../../../shared/widgets/category_art.dart';
 import '../../../../shared/widgets/surfaces.dart';
+import '../../../analysis/state/analysis_controller.dart';
 import '../../../discovery/presentation/competitor_summary.dart';
 import '../../../discovery/state/competitor_controller.dart';
 import '../../../places/presentation/site_place_label.dart';
@@ -18,7 +19,7 @@ import 'search_distance_picker.dart';
 
 /// The map tab's compact controls, in the order a first-time user needs
 /// them: where (location), what (business type), how far (radius), then
-/// "Find nearby businesses" and, once found, the way to the score.
+/// "Find nearby businesses" and, once found, the next step to the score.
 class MapSetupCard extends ConsumerWidget {
   const MapSetupCard({super.key});
 
@@ -29,7 +30,13 @@ class MapSetupCard extends ConsumerWidget {
   static const needSiteReason = 'Choose a location first, then search.';
   static const useMyLocation = 'Use my location';
   static const pickOnMap = 'Pick on map';
-  static const openAnalyze = 'See the suitability score';
+
+  /// Starts the score calculation (one explicit request) and opens it.
+  static const openAnalyze = 'Calculate suitability score';
+
+  /// Opens the score that is already being calculated or is ready.
+  static const viewScore = 'See the suitability score';
+  static const viewProgress = 'See score progress';
   static const businessTypeLabel = 'Business type';
 
   /// Below this content width the distance field moves under the business
@@ -41,6 +48,9 @@ class MapSetupCard extends ConsumerWidget {
     final state = ref.watch(exploreControllerProvider);
     final controller = ref.read(exploreControllerProvider.notifier);
     final competitors = ref.watch(competitorControllerProvider);
+    final analysisStatus = ref.watch(
+      analysisControllerProvider.select((s) => s.status),
+    );
     final locating = state.locationStatus == LocationStatus.locating;
 
     return Column(
@@ -112,6 +122,14 @@ class MapSetupCard extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         if (competitors.status == CompetitorStatus.idle) ...[
+          if (state.canSearch && competitors.clearedNotice != null) ...[
+            InfoNote(
+              icon: Icons.refresh,
+              lines: [competitors.clearedNotice!],
+              tone: NoteTone.warning,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
           FilledButton.icon(
             onPressed: state.canSearch
                 ? () => ref.read(competitorControllerProvider.notifier).search()
@@ -122,8 +140,10 @@ class MapSetupCard extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             state.canSearch
-                ? 'Shows ${state.category.label.toLowerCase()} businesses '
-                      'listed on OpenStreetMap within ${state.radius.label}.'
+                ? 'Looks for ${state.category.label.toLowerCase()} businesses '
+                      'listed on OpenStreetMap within ${state.radius.label} '
+                      'around this spot (straight-line distance, not travel '
+                      'distance).'
                 : needSiteReason,
             textAlign: TextAlign.center,
             style: mutedSmall(context),
@@ -140,11 +160,31 @@ class MapSetupCard extends ConsumerWidget {
           const CompetitorSummary(compact: true),
           if (competitors.result != null) ...[
             const SizedBox(height: AppSpacing.sm),
+            // The label says what the tap really does: start the score,
+            // or open the one already running / ready.
             FilledButton.icon(
-              onPressed: () => context.go(AppRoutes.analyze),
+              onPressed: () {
+                if (analysisStatus == AnalysisStatus.idle) {
+                  ref.read(analysisControllerProvider.notifier).analyze();
+                }
+                context.go(AppRoutes.analyze);
+              },
               icon: const Icon(Icons.insights),
-              label: const Text(openAnalyze),
+              label: Text(switch (analysisStatus) {
+                AnalysisStatus.idle => openAnalyze,
+                AnalysisStatus.loading => viewProgress,
+                AnalysisStatus.ready => viewScore,
+              }),
             ),
+            if (analysisStatus == AnalysisStatus.idle) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Next step: checks helpful places and roads nearby, then '
+                'shows the score on the ANALYZE tab.',
+                textAlign: TextAlign.center,
+                style: mutedSmall(context),
+              ),
+            ],
           ],
         ],
       ],

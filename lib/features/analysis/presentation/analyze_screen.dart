@@ -58,9 +58,10 @@ class AnalyzeScreen extends ConsumerWidget {
             icon: Icons.travel_explore,
             title: findFirstTitle,
             message:
-                'First, let’s see which ${explore.category.label.toLowerCase()} '
-                'businesses are on the map within ${explore.radius.label}. '
-                'This can take up to a minute.',
+                '${competitors.clearedNotice == null ? '' : '${competitors.clearedNotice} '}'
+                'First, find which ${explore.category.label.toLowerCase()} '
+                'businesses are on the map within ${explore.radius.label} '
+                'around this spot. This can take up to a minute.',
             action: FilledButton.icon(
               onPressed: () =>
                   ref.read(competitorControllerProvider.notifier).search(),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:pwestado/features/places/data/place_repository.dart';
 import 'package:pwestado/features/places/domain/place.dart';
@@ -19,6 +21,10 @@ class FakePlaceRepository implements PlaceRepository {
   List<PlaceResult> results = [sanFernando];
   GeocodingFailure? failure;
 
+  /// When set, the next search waits for this and ignores cancellation,
+  /// like a response that was already on its way.
+  Completer<List<PlaceResult>>? pendingSearch;
+
   /// Returned by [labelFor] (unless [labelOf] is set); set [labelFailure]
   /// to make lookups fail.
   PlaceLabel label;
@@ -38,6 +44,11 @@ class FakePlaceRepository implements PlaceRepository {
     CancelToken? cancelToken,
   }) async {
     searches.add(query);
+    final pending = pendingSearch;
+    if (pending != null) {
+      pendingSearch = null;
+      return pending.future;
+    }
     final failure = this.failure;
     if (failure != null) throw GeocodingException(failure);
     return results;

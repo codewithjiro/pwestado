@@ -177,6 +177,42 @@ void main() {
       explore().selectCategory(BusinessCategory.laundry);
       expect(state().status, CompetitorStatus.idle);
       expect(state().businesses, isEmpty);
+      // The user is told why the results disappeared.
+      expect(
+        state().clearedNotice,
+        startsWith(
+          'You changed the business type, so the earlier results '
+          'were cleared.',
+        ),
+      );
+    });
+
+    test('the notice names every change and goes with the site', () async {
+      await showResults();
+      explore().applySettings(BusinessCategory.bakery, SearchRadius.km2);
+      expect(
+        state().clearedNotice,
+        contains('business type and search distance'),
+      );
+
+      explore().clearSite();
+      expect(state().clearedNotice, isNull);
+    });
+
+    test('a new search replaces the notice', () async {
+      await showResults();
+      explore().selectRadius(SearchRadius.m500);
+      expect(state().clearedNotice, isNotNull);
+      final search = controller().search();
+      expect(state().clearedNotice, isNull);
+      repo.pending.last.complete(resultFor(repo.calls.last.query, []));
+      await search;
+    });
+
+    test('no notice when there were no results to clear', () {
+      pickSite();
+      explore().selectRadius(SearchRadius.m500);
+      expect(state().clearedNotice, isNull);
     });
 
     test('radius change', () async {

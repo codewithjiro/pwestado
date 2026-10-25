@@ -225,7 +225,7 @@ void main() {
     await tester.tap(find.text(MapSetupCard.useMyLocation));
     await tester.pumpAndSettle();
 
-    expect(find.text('Site set to your current location.'), findsOneWidget);
+    expect(find.text('Location set to where you are now.'), findsOneWidget);
     expect(find.text('My location (GPS)'), findsOneWidget);
     expect(find.text('Near Test Road'), findsOneWidget);
   });

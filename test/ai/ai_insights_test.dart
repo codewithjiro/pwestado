@@ -143,10 +143,10 @@ void main() {
       );
       expect(payload['mode'], 'compare');
       expect((payload['sites']! as List).map((s) => (s as Map)['label']), [
-        'Site A',
-        'Site B',
+        'First location',
+        'Second location',
       ]);
-      expect((payload['comparison']! as Map)['higher'], 'Site B');
+      expect((payload['comparison']! as Map)['higher'], 'Second location');
     });
   });
 

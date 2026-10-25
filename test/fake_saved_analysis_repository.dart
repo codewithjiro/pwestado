@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:pwestado/core/models/selected_site.dart';
 import 'package:pwestado/features/analysis/domain/site_analysis.dart';
 import 'package:pwestado/features/saved/data/saved_analysis_codec.dart';
@@ -12,6 +14,9 @@ class FakeSavedAnalysisRepository implements SavedAnalysisRepository {
   int _nextId = 1;
   SavedAnalysisStorageException? failWith;
   int calls = 0;
+
+  /// When set, saves wait for it before writing.
+  Completer<void>? saveGate;
 
   void _check() {
     calls++;
@@ -50,6 +55,8 @@ class FakeSavedAnalysisRepository implements SavedAnalysisRepository {
     SiteAnalysis analysis,
     DateTime savedAt,
   ) async {
+    final gate = saveGate;
+    if (gate != null) await gate.future;
     _check();
     final id = _nextId++;
     rows[id] = {

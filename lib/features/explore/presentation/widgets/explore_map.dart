@@ -331,7 +331,7 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
   }
 
   /// Creates the annotation layers once. Creation order is drawing order:
-  /// the radius ring at the bottom, competitors above it, then the Site A/B
+  /// the radius ring at the bottom, competitors above it, then the first/second location
   /// pins, and the site pin on top so it is never hidden by a nearby
   /// competitor.
   Future<bool> _ensureManagers() async {
@@ -372,7 +372,7 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
     if (!await _ensureManagers()) return;
     final site = ref.read(exploreControllerProvider).site;
     final slots = ref.read(comparisonControllerProvider);
-    // A pin stored as Site A/B is drawn with its letter instead; the plain
+    // A pin stored as the first/second location is drawn with its number instead; the plain
     // pin on the same spot would hide it.
     final shownAsSlot =
         site != null &&
@@ -406,7 +406,7 @@ class _ExploreMapState extends ConsumerState<ExploreMap> {
     );
   }
 
-  /// One lettered pin per assigned comparison slot, at that slot's own
+  /// One numbered pin per assigned comparison slot, at that slot's own
   /// stored site (never the current map pin unless it was assigned).
   Future<void> _syncComparePins() async {
     if (!await _ensureManagers()) return;

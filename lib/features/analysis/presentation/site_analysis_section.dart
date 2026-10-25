@@ -28,6 +28,9 @@ class SiteAnalysisSection extends ConsumerWidget {
   static const insufficientData = 'Not enough data yet';
   static const insufficientMessage =
       'We couldn’t get enough information to score this location yet.';
+  static const reasonsTitle = 'Main reasons';
+  static const limitsTitle = 'What this score can’t tell you';
+  static const technicalTitle = 'How the score is calculated';
   static const sampleLabel = 'Sample result · not real data';
   static const analyzeLabel = 'Calculate suitability score';
   static const lowConfidenceLabel = 'May be incomplete';
@@ -88,9 +91,10 @@ class _Intro extends StatelessWidget {
           const _Heading(),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'We’ll check helpful places and roads near this spot on '
-            'OpenStreetMap, then combine them with the competitors found: '
-            '40% competition, 30% helpful places nearby, 30% mapped roads.',
+            'Next, we check helpful places (like schools, markets and banks) '
+            'and roads near this spot on OpenStreetMap, then combine them '
+            'with the similar businesses found. The score is out of 100: '
+            '40% competition, 30% helpful places, 30% roads.',
             style: _muted(context),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -220,6 +224,7 @@ class SaveAnalysisButton extends ConsumerWidget {
 
   static const label = 'Save analysis';
   static const savedLabel = 'Saved · view';
+  static const savingLabel = 'Saving…';
 
   final SiteAnalysis analysis;
 
@@ -234,7 +239,21 @@ class SaveAnalysisButton extends ConsumerWidget {
     final savedId = ref.watch(
       savedAnalysesControllerProvider.select((s) => s.savedIds[analysis]),
     );
+    final saving = ref.watch(
+      savedAnalysesControllerProvider.select((s) => s.isSaving(analysis)),
+    );
     if (site == null) return const SizedBox.shrink();
+
+    if (saving) {
+      return OutlinedButton.icon(
+        onPressed: null,
+        icon: const SizedBox.square(
+          dimension: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        label: const Text(savingLabel),
+      );
+    }
 
     if (savedId != null) {
       return OutlinedButton.icon(
@@ -271,9 +290,9 @@ Future<void> saveAnalysis(
       SnackBar(
         content: Text(
           id != null
-              ? 'Analysis saved on this device with its original evidence '
-                    'and times.'
-              : outcome.error ?? 'Could not save the analysis.',
+              ? 'Analysis saved on this phone. Find it any time in SAVED.'
+              : '${outcome.error ?? 'Could not save the analysis.'} Your '
+                    'result is still here, so you can try saving again.',
         ),
         action: id == null
             ? null
@@ -327,40 +346,46 @@ class ScoreBreakdown extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             const _SampleTag(),
           ],
+          // 1. Plain-language summary.
           const SizedBox(height: AppSpacing.lg),
           _TotalLine(
             score: score.total,
             lowConfidence: score.lowConfidence,
-            settings: '${query.category.label} · ${query.radius.label}',
+            settings: '${query.category.label} · within ${query.radius.label}',
           ),
           if (total != null) ...[
             const SizedBox(height: AppSpacing.md),
-            ScoreInterpretation(total: total),
+            ScoreInterpretation(total: total, score: score),
           ],
-          const SizedBox(height: AppSpacing.md),
-          _ContributionBar(score: score),
-          const SizedBox(height: AppSpacing.md),
+          // 2. The main reasons, one per criterion.
+          const SizedBox(height: AppSpacing.lg),
+          const _SubHeading(SiteAnalysisSection.reasonsTitle),
+          const SizedBox(height: AppSpacing.sm),
+          for (final criterion in score.criteria) ...[
+            _CriterionRow(result: criterion),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+          // 3. Limits of the data, always visible.
+          const _SubHeading(SiteAnalysisSection.limitsTitle),
+          const SizedBox(height: AppSpacing.sm),
+          if (score.warnings.isNotEmpty) ...[
+            _Warnings(warnings: score.warnings),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          _MissingEvidence(analysis: analysis, onRetry: onRefresh),
           Text(
-            '${query.category.label} within ${query.radius.label}. '
-            '${SiteAnalysisSection.disclaimer}',
+            'Counts only ${query.category.label.toLowerCase()} businesses '
+            'and places mapped on OpenStreetMap within ${query.radius.label} '
+            'around this spot. ${SiteAnalysisSection.disclaimer}',
             style: _muted(context),
           ),
           if (actions != null) ...[
             const SizedBox(height: AppSpacing.md),
             actions!,
           ],
-          if (score.warnings.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.md),
-            _Warnings(warnings: score.warnings),
-          ],
-          const SizedBox(height: AppSpacing.lg),
-          for (final criterion in score.criteria) ...[
-            _CriterionRow(result: criterion),
-            const SizedBox(height: AppSpacing.lg),
-          ],
+          // 4. Formula, points and sources, collapsed by default.
+          const SizedBox(height: AppSpacing.sm),
           _Rules(analysis: analysis),
-          const Divider(height: AppSpacing.xl),
-          _Sources(analysis: analysis, onRetry: onRefresh),
         ],
       ),
     );
@@ -371,9 +396,44 @@ class ScoreBreakdown extends StatelessWidget {
 /// assumption as the thresholds, so the text always points back to the
 /// evidence and to checking the area in person.
 class ScoreInterpretation extends StatelessWidget {
-  const ScoreInterpretation({super.key, required this.total});
+  const ScoreInterpretation({super.key, required this.total, this.score});
 
   final double total;
+
+  /// When given, the summary names what helped and what held the score
+  /// back, in plain words.
+  final SuitabilityScore? score;
+
+  /// "Helped by: few similar businesses mapped nearby." and/or "Held back
+  /// by: …", or nothing when no criterion stands out.
+  static List<String> drivers(SuitabilityScore score) {
+    final helped = <String>[];
+    final heldBack = <String>[];
+    for (final result in score.criteria) {
+      final value = result.score;
+      if (value == null) continue;
+      if (value >= 60) helped.add(_plain(result.criterion, strong: true));
+      if (value < 40) heldBack.add(_plain(result.criterion, strong: false));
+    }
+    return [
+      if (helped.isNotEmpty) 'Helped by: ${helped.join('; ')}.',
+      if (heldBack.isNotEmpty) 'Held back by: ${heldBack.join('; ')}.',
+    ];
+  }
+
+  static String _plain(Criterion criterion, {required bool strong}) =>
+      switch (criterion) {
+        Criterion.competitorProximity =>
+          strong
+              ? 'few similar businesses mapped nearby'
+              : 'many similar businesses mapped nearby',
+        Criterion.complementary =>
+          strong
+              ? 'many helpful places mapped nearby'
+              : 'few helpful places mapped nearby',
+        Criterion.roadAccess =>
+          strong ? 'a mapped road close by' : 'mapped roads far or missing',
+      };
 
   static String headline(double total) => total >= 70
       ? 'Promising, based on what’s on the map'
@@ -393,6 +453,9 @@ class ScoreInterpretation extends StatelessWidget {
             color: context.palette.brand,
           ),
         ),
+        if (score != null)
+          for (final line in drivers(score!))
+            Text(line, style: theme.textTheme.bodySmall),
         Text(
           'Use it as a starting point. Visit the area at different times '
           'before deciding.',
@@ -681,16 +744,12 @@ class _CriterionRow extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          score == null
-              ? 'Adds nothing: evidence unavailable.'
-              : 'Adds ${result.contribution!.toStringAsFixed(1)} of '
-                    '${criterion.weightPercent} possible points.',
+          result.evidence,
           style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             color: context.palette.heading,
           ),
         ),
-        Text(result.evidence, style: theme.textTheme.bodySmall),
         Text(criterion.meaning, style: _muted(context)),
       ],
     );
@@ -760,12 +819,28 @@ class _Rules extends StatelessWidget {
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
         leading: Icon(Icons.functions, color: context.palette.brand),
         title: Text(
-          'How the score is calculated',
+          SiteAnalysisSection.technicalTitle,
           style: theme.textTheme.titleSmall?.copyWith(
             color: context.palette.brand,
           ),
         ),
+        subtitle: Text(
+          'Points, formula and data sources',
+          style: _muted(context),
+        ),
         children: [
+          _ContributionBar(score: analysis.score),
+          const SizedBox(height: AppSpacing.sm),
+          for (final result in analysis.score.criteria)
+            Text(
+              result.score == null
+                  ? '${result.criterion.label}: adds nothing (no data).'
+                  : '${result.criterion.label}: adds '
+                        '${result.contribution!.toStringAsFixed(1)} of '
+                        '${result.criterion.weightPercent} possible points.',
+              style: theme.textTheme.bodySmall,
+            ),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             'Total = 0.40 × competition + 0.30 × helpful places + 0.30 × '
             'mapped roads. Each part is scored from 0 to 100.',
@@ -806,14 +881,38 @@ class _Rules extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(SiteAnalysisSection.assumptionsNote, style: _muted(context)),
+          const Divider(height: AppSpacing.xl),
+          _Sources(analysis: analysis),
         ],
       ),
     );
   }
 }
 
-class _Sources extends StatelessWidget {
-  const _Sources({required this.analysis, required this.onRetry});
+/// Small heading for a part of the result card.
+class _SubHeading extends StatelessWidget {
+  const _SubHeading(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      header: true,
+      child: Text(
+        text,
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(color: context.palette.heading),
+      ),
+    );
+  }
+}
+
+/// A failed places-and-roads request, kept in view with its retry: it is
+/// the reason a score may be missing, not a technical footnote.
+class _MissingEvidence extends StatelessWidget {
+  const _MissingEvidence({required this.analysis, required this.onRetry});
 
   final SiteAnalysis analysis;
 
@@ -822,17 +921,53 @@ class _Sources extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final failure = analysis.contextFailure;
+    if (analysis.context != null || failure == null) {
+      return const SizedBox.shrink();
+    }
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Helpful places and roads couldn’t be loaded: '
+            '${describeOverpassFailure(failure, analysis.contextStatusCode).$1}. '
+            'Nothing was substituted for the missing evidence.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
+          if (onRetry != null)
+            TextButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try again'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Sources extends StatelessWidget {
+  const _Sources({required this.analysis});
+
+  final SiteAnalysis analysis;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final muted = _muted(context);
     final siteContext = analysis.context;
-    final failure = analysis.contextFailure;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Evidence sources', style: theme.textTheme.labelLarge),
         const SizedBox(height: AppSpacing.xs),
         _SourceRow(
-          label: 'Competitors',
+          label: 'Similar businesses',
           source: analysis.competitors.source,
           text: _describe(
             context,
@@ -851,23 +986,14 @@ class _Sources extends StatelessWidget {
                           'missing coordinates.'
                     : ''),
           )
-        else if (failure != null) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Complementary places & roads: '
-            '${describeOverpassFailure(failure, analysis.contextStatusCode).$1}. '
-            'Nothing was substituted for the missing evidence.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.error,
+        else
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: Text(
+              'Complementary places & roads: not loaded (see above).',
+              style: muted,
             ),
           ),
-          if (onRetry != null)
-            TextButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try again'),
-            ),
-        ],
         const SizedBox(height: AppSpacing.sm),
         Text(
           analysis.isSample

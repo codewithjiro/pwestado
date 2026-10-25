@@ -113,7 +113,13 @@ class ExploreController extends Notifier<ExploreState> {
 
   void clearSite() {
     _siteGeneration++;
-    state = state.copyWith(clearSite: true);
+    state = state.copyWith(
+      clearSite: true,
+      // The pending GPS answer will be ignored, so stop showing progress.
+      locationStatus: state.locationStatus == LocationStatus.locating
+          ? LocationStatus.idle
+          : null,
+    );
   }
 
   /// Sets the site to the device's current position. Failures are reported
@@ -140,6 +146,11 @@ class ExploreController extends Notifier<ExploreState> {
       state = state.copyWith(
         locationStatus: LocationStatus.fromFailure(e.reason),
       );
+    } catch (e) {
+      // Any other error must still end "Locating…" with a visible outcome.
+      debugPrint('Use my location failed: ${e.runtimeType}');
+      if (!ref.mounted || generation != _siteGeneration) return;
+      state = state.copyWith(locationStatus: LocationStatus.unavailable);
     }
   }
 }

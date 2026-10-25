@@ -123,7 +123,11 @@ class CompetitorSummary extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title, style: theme.textTheme.titleSmall),
-                      Text('No results came back.', style: muted),
+                      Text(
+                        'The search didn’t finish, so nothing is shown. '
+                        'Try again, or tap Details for other options.',
+                        style: muted,
+                      ),
                     ],
                   ),
                 ),
@@ -194,8 +198,8 @@ class CompetitorSummary extends ConsumerWidget {
   static String _countText(CompetitorResult result) {
     final query = result.query;
     if (result.isEmpty) {
-      return 'No ${query.category.label} businesses found within '
-          '${query.radius.label}';
+      return 'No ${query.category.label} businesses listed on the map '
+          'within ${query.radius.label}';
     }
     final count = '${result.count}${result.possiblyTruncated ? '+' : ''}';
     return '$count ${query.category.label} '

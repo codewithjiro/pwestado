@@ -171,20 +171,20 @@ void main() {
     repo.pending.single.complete(resultFor(repo.calls.single.query, []));
     await tester.pumpAndSettle();
     expect(
-      find.text('No Coffee Shop businesses found within 1 km'),
+      find.text('No Coffee Shop businesses listed on the map within 1 km'),
       findsOneWidget,
     );
     await openList(tester);
 
     await scrollTo(tester, find.text(CompetitorResults.emptyMessage));
     expect(
-      find.text('No businesses found on the map within this radius.'),
+      find.text('None listed on the map within this distance.'),
       findsOneWidget,
     );
     expect(find.text('0 businesses found'), findsOneWidget);
     expect(find.textContaining('No competitors'), findsNothing);
     expect(
-      find.textContaining('may exist but not be on the map yet'),
+      find.textContaining('That doesn’t mean there are none'),
       findsOneWidget,
     );
   });

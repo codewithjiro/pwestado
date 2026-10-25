@@ -20,6 +20,7 @@ class CompetitorSearchState {
     this.statusCode,
     this.notice,
     this.selectedKey,
+    this.clearedNotice,
   });
 
   final CompetitorStatus status;
@@ -39,6 +40,11 @@ class CompetitorSearchState {
 
   /// The business highlighted on the map / opened in details.
   final String? selectedKey;
+
+  /// Set on an idle state when earlier results were dropped because the
+  /// location, business type or distance changed: tells the user why the
+  /// results disappeared and that they need to search again.
+  final String? clearedNotice;
 
   bool get isLoading => status == CompetitorStatus.loading;
 
@@ -79,12 +85,48 @@ class CompetitorController extends Notifier<CompetitorSearchState> {
   int _generation = 0;
   CancelToken? _inFlight;
 
+  /// "You changed the business type, so the earlier results were cleared…"
+  static String clearedNoticeFor({
+    required bool location,
+    required bool businessType,
+    required bool distance,
+  }) {
+    final changed = [
+      if (location) 'location',
+      if (businessType) 'business type',
+      if (distance) 'search distance',
+    ];
+    final what = changed.length <= 1
+        ? (changed.isEmpty ? 'settings' : changed.single)
+        : '${changed.sublist(0, changed.length - 1).join(', ')} and '
+              '${changed.last}';
+    return 'You changed the $what, so the earlier results were cleared. '
+        'Search again to see results for your new choice.';
+  }
+
   @override
   CompetitorSearchState build() {
     ref.listen(
       exploreControllerProvider.select((s) => (s.site, s.category, s.radius)),
       (previous, next) {
-        if (previous != next) _reset();
+        if (previous == next) return;
+        final hadResults =
+            state.status != CompetitorStatus.idle ||
+            state.clearedNotice != null;
+        _reset();
+        // Without a location there is nothing to search again; the card
+        // already asks for one.
+        if (hadResults && previous != null && next.$1 != null) {
+          state = CompetitorSearchState(
+            clearedNotice: clearedNoticeFor(
+              location: previous.$1 != next.$1,
+              businessType: previous.$2 != next.$2,
+              distance: previous.$3 != next.$3,
+            ),
+          );
+        } else if (state.clearedNotice != null) {
+          state = const CompetitorSearchState();
+        }
       },
     );
     ref.onDispose(() => _inFlight?.cancel());

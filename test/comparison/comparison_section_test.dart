@@ -5,6 +5,7 @@ import 'package:pwestado/app/app.dart';
 import 'package:pwestado/core/models/search_radius.dart';
 import 'package:pwestado/features/analysis/data/site_context_repository.dart';
 import 'package:pwestado/features/comparison/presentation/compare_screen.dart';
+import 'package:pwestado/features/comparison/domain/site_comparison.dart';
 import 'package:pwestado/features/comparison/presentation/comparison_section.dart';
 import 'package:pwestado/features/discovery/data/competitor_repository.dart';
 import 'package:pwestado/features/discovery/domain/competitors.dart';
@@ -89,7 +90,7 @@ Future<void> tapText(WidgetTester tester, String text) async {
   await tester.pumpAndSettle();
 }
 
-/// Pins site A and site B through the panel's "Use current pin" buttons.
+/// Stores site A and site B through the panel's next-step button.
 Future<void> assignBoth(
   WidgetTester tester,
   ProviderContainer container,
@@ -97,13 +98,16 @@ Future<void> assignBoth(
   final explore = container.read(exploreControllerProvider.notifier);
   explore.selectSite(latitude: siteA.lat, longitude: siteA.lon);
   await tester.pumpAndSettle();
-  await tapText(tester, ComparisonSection.useCurrentPin);
+  await tapText(tester, ComparisonSection.useAs(CompareSlot.a));
+
+  // The map still shows the first location, so the next step is to go
+  // and choose a different spot.
+  expect(find.text(ComparisonSection.choose(CompareSlot.b)), findsOneWidget);
+  expect(find.text(ComparisonSection.useAs(CompareSlot.b)), findsNothing);
 
   explore.selectSite(latitude: siteB.lat, longitude: siteB.lon);
   await tester.pumpAndSettle();
-  // Site A now offers "Move to current pin"; only B offers "Use".
-  expect(find.text(ComparisonSection.useCurrentPin), findsOneWidget);
-  await tapText(tester, ComparisonSection.useCurrentPin);
+  await tapText(tester, ComparisonSection.useAs(CompareSlot.b));
 }
 
 void main() {
@@ -113,23 +117,30 @@ void main() {
     await pumpApp(tester);
     expect(find.text('Start with a location on MAPA'), findsOneWidget);
     await scrollTo(tester, find.text(ComparisonSection.title));
-    expect(find.text('No location chosen yet.'), findsNWidgets(2));
-    expect(find.textContaining('tap "Use map location" for Site A'), findsOne);
-    expect(find.text(ComparisonSection.analyzeBoth), findsNothing);
+    expect(find.text('Not chosen yet.'), findsNWidgets(2));
+    expect(
+      find.textContaining('"${ComparisonSection.useAs(CompareSlot.a)}"'),
+      findsOne,
+    );
+    expect(find.text(ComparisonSection.compareLabel), findsNothing);
   });
 
   testWidgets('compares two analyzed sites side by side', (tester) async {
     final container = await pumpApp(tester);
     await assignBoth(tester, container);
-    expect(find.text('Ready to analyze.'), findsNWidgets(2));
+    expect(find.text('Chosen. Not checked yet.'), findsNWidgets(2));
+    // Both place names and the shared settings show before comparing.
+    expect(find.text('Near Road A'), findsWidgets);
+    expect(find.text('Near Road B'), findsWidgets);
+    expect(find.text('Coffee Shop · within 1 km'), findsOneWidget);
 
-    await tapText(tester, ComparisonSection.analyzeBoth);
+    await tapText(tester, ComparisonSection.compareLabel);
 
     expect(competitors.calls.map((c) => c.query), [
       queryAt(siteA),
       queryAt(siteB),
     ]);
-    await scrollTo(tester, find.text('Competitors mapped'));
+    await scrollTo(tester, find.text('Similar businesses on the map'));
     // Readable place names, not coordinates, label each site.
     expect(find.text('Near Road A'), findsWidgets);
     expect(find.text('Near Road B'), findsWidgets);
@@ -137,18 +148,23 @@ void main() {
     expect(find.text('Coffee Shop · 1 km'), findsNWidgets(2));
     expect(find.text('3 (2 within 250 m)'), findsOneWidget);
     expect(find.text('0 (0 within 250 m)'), findsOneWidget);
-    expect(find.text('Road 30 m; major 120 m'), findsNWidgets(2));
+    expect(find.text('Road 30 m; major road 120 m'), findsNWidgets(2));
 
     await scrollTo(tester, find.text('Suitability score'));
     expect(find.text('64 / 100'), findsOneWidget);
     expect(find.text('74 / 100'), findsOneWidget);
-    expect(find.text('Higher suitability score'), findsOneWidget);
+    expect(find.text('Higher score'), findsOneWidget);
 
     await scrollTo(
       tester,
-      find.text('Site B has the higher suitability score'),
+      find.text('Second location scores higher on the map'),
     );
-    expect(find.textContaining('(+10.0 points)'), findsOneWidget);
+    expect(find.textContaining('64 / 100 (+10.0 points)'), findsOneWidget);
+    // The reason for the gap, in plain words.
+    expect(
+      find.text('• Fewer similar businesses mapped nearby (+10.0 points)'),
+      findsOneWidget,
+    );
     expect(find.text(ComparisonSection.disclaimer), findsOneWidget);
     expect(find.text(ComparisonSection.notComparable), findsNothing);
   });
@@ -161,7 +177,7 @@ void main() {
         ? throw const CompetitorFetchException(CompetitorFailure.network)
         : resultFor(q, threeCompetitors);
     await assignBoth(tester, container);
-    await tapText(tester, ComparisonSection.analyzeBoth);
+    await tapText(tester, ComparisonSection.compareLabel);
 
     expect(find.text('No internet connection'), findsOneWidget);
     expect(find.text('Search failed'), findsWidgets);
@@ -169,15 +185,14 @@ void main() {
 
     await scrollTo(tester, find.text(ComparisonSection.notComparable));
     expect(
-      find.textContaining('Site B uses SAMPLE DEMO DATA and Site A uses'),
+      find.textContaining(
+        'Second location uses SAMPLE DEMO DATA and the first location uses',
+      ),
       findsOneWidget,
     );
     expect(find.text('SAMPLE DEMO DATA'), findsWidgets);
-    expect(find.text('Higher suitability score'), findsNothing);
-    expect(
-      find.textContaining('has the higher suitability score'),
-      findsNothing,
-    );
+    expect(find.text('Higher score'), findsNothing);
+    expect(find.textContaining('scores higher on the map'), findsNothing);
   });
 
   testWidgets('a settings change blocks the ranking until re-analyzed', (
@@ -185,8 +200,8 @@ void main() {
   ) async {
     final container = await pumpApp(tester);
     await assignBoth(tester, container);
-    await tapText(tester, ComparisonSection.analyzeBoth);
-    expect(find.text('Higher suitability score'), findsOneWidget);
+    await tapText(tester, ComparisonSection.compareLabel);
+    expect(find.text('Higher score'), findsOneWidget);
 
     container
         .read(exploreControllerProvider.notifier)
@@ -195,13 +210,13 @@ void main() {
 
     await scrollTo(tester, find.text(ComparisonSection.notComparable));
     expect(find.textContaining('Search settings changed'), findsOneWidget);
-    expect(find.text('Higher suitability score'), findsNothing);
+    expect(find.text('Higher score'), findsNothing);
     expect(
-      find.text('Uses different search settings. Update it to compare.'),
+      find.text('Checked with different settings. Compare again to update it.'),
       findsNWidgets(2),
     );
 
-    await tapText(tester, ComparisonSection.analyzeBoth);
+    await tapText(tester, ComparisonSection.compareAgainLabel);
     expect(competitors.calls.skip(2).map((c) => c.query.radius), [
       SearchRadius.km2,
       SearchRadius.km2,

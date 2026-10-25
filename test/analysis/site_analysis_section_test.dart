@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +12,8 @@ import 'package:pwestado/features/discovery/domain/competitors.dart';
 import 'package:pwestado/features/discovery/presentation/competitor_results.dart';
 import 'package:pwestado/features/discovery/state/competitor_controller.dart';
 import 'package:pwestado/features/explore/data/location_service.dart';
+import 'package:pwestado/core/models/search_radius.dart';
+import 'package:pwestado/features/explore/presentation/widgets/map_setup_card.dart';
 import 'package:pwestado/features/explore/state/explore_controller.dart';
 import 'package:pwestado/features/saved/data/saved_analysis_repository.dart';
 
@@ -20,6 +24,7 @@ import '../fake_site_context_repository.dart';
 
 late FakeCompetitorRepository competitors;
 late FakeSiteContextRepository contexts;
+late FakeSavedAnalysisRepository saved;
 
 Future<ProviderContainer> pumpApp(WidgetTester tester) async {
   tester.view.physicalSize = const Size(412, 915);
@@ -33,15 +38,14 @@ Future<ProviderContainer> pumpApp(WidgetTester tester) async {
     ]),
   );
   contexts = FakeSiteContextRepository();
+  saved = FakeSavedAnalysisRepository();
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         locationServiceProvider.overrideWithValue(FakeLocationService()),
         competitorRepositoryProvider.overrideWithValue(competitors),
         siteContextRepositoryProvider.overrideWithValue(contexts),
-        savedAnalysisRepositoryProvider.overrideWithValue(
-          FakeSavedAnalysisRepository(),
-        ),
+        savedAnalysisRepositoryProvider.overrideWithValue(saved),
       ],
       child: const PwestadoApp(),
     ),
@@ -131,20 +135,30 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.textContaining(SiteAnalysisSection.disclaimer), findsOne);
+    expect(find.textContaining('Helped by: few similar businesses'), findsOne);
+    expect(find.textContaining('Held back by: few helpful places'), findsOne);
 
+    await scrollTo(tester, find.text(SiteAnalysisSection.reasonsTitle));
     await scrollTo(tester, find.text('Nearby competition · 40%'));
     expect(find.text('75 / 100'), findsOneWidget);
-    expect(find.text('Adds 30.0 of 40 possible points.'), findsOneWidget);
     await scrollTo(tester, find.text('Helpful places nearby · 30%'));
     expect(find.text('12 / 100'), findsOneWidget);
     expect(find.text('6 mapped places: 6 school.'), findsOneWidget);
     await scrollTo(tester, find.text('Mapped road access · 30%'));
     expect(find.textContaining('not travel time'), findsOneWidget);
 
-    await scrollTo(tester, find.text('How the score is calculated'));
-    await tester.tap(find.text('How the score is calculated'));
+    await scrollTo(tester, find.text(SiteAnalysisSection.limitsTitle));
+    await scrollTo(tester, find.textContaining(SiteAnalysisSection.disclaimer));
+
+    // Points, formula and sources stay collapsed until asked for.
+    expect(find.text('Evidence sources'), findsNothing);
+    await scrollTo(tester, find.text(SiteAnalysisSection.technicalTitle));
+    await tester.tap(find.text(SiteAnalysisSection.technicalTitle));
     await tester.pumpAndSettle();
+    await scrollTo(
+      tester,
+      find.text('Nearby competition: adds 30.0 of 40 possible points.'),
+    );
     await scrollTo(
       tester,
       find.text('Total = 0.40 × 75 + 0.30 × 12 + 0.30 × 100 = 63.6'),
@@ -164,6 +178,95 @@ void main() {
     expect(find.text(CompetitorResults.attribution), findsWidgets);
     expect(find.text(SiteAnalysisSection.sampleLabel), findsNothing);
     expect(find.text(SiteAnalysisSection.lowConfidenceLabel), findsNothing);
+  });
+
+  testWidgets('the map card starts the score and then offers to view it', (
+    tester,
+  ) async {
+    final container = await pumpApp(tester);
+    container
+        .read(exploreControllerProvider.notifier)
+        .selectSite(latitude: 15.0939, longitude: 120.7681);
+    await container.read(competitorControllerProvider.notifier).search();
+    await tester.pumpAndSettle();
+    expect(contexts.calls, isEmpty, reason: 'nothing runs on its own');
+
+    final mapCard = find.byType(MapSetupCard);
+    final start = find.descendant(
+      of: mapCard,
+      matching: find.text(MapSetupCard.openAnalyze),
+    );
+    await tester.ensureVisible(start);
+    await tester.tap(start);
+    await tester.pump();
+
+    // One request, started by the tap, and the ANALYZE tab shows progress.
+    expect(contexts.calls, hasLength(1));
+    // The progress bar never settles; pump past the tab switch instead.
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(
+      find.text('Checking helpful places and roads nearby…'),
+      findsOneWidget,
+    );
+    contexts.pending.single.complete(contextFor(contexts.calls.single.query));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('MAPA'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: mapCard, matching: find.text(MapSetupCard.viewScore)),
+      findsOneWidget,
+    );
+    expect(contexts.calls, hasLength(1));
+  });
+
+  testWidgets('changing a setting explains why results were cleared', (
+    tester,
+  ) async {
+    final container = await pumpApp(tester);
+    container
+        .read(exploreControllerProvider.notifier)
+        .selectSite(latitude: 15.0939, longitude: 120.7681);
+    await container.read(competitorControllerProvider.notifier).search();
+    await tester.pumpAndSettle();
+
+    container
+        .read(exploreControllerProvider.notifier)
+        .selectRadius(SearchRadius.km2);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(MapSetupCard),
+        matching: find.textContaining('You changed the search distance'),
+      ),
+      findsOneWidget,
+    );
+    expect(competitors.calls, hasLength(1), reason: 'no automatic search');
+  });
+
+  testWidgets('saving shows progress and saves once', (tester) async {
+    final container = await pumpApp(tester);
+    await searchAndAnalyze(tester, container);
+    contexts.pending.single.complete(contextFor(contexts.calls.single.query));
+    await tester.pumpAndSettle();
+
+    await scrollTo(tester, find.text(SaveAnalysisButton.label));
+    saved.saveGate = Completer<void>();
+    await tester.tap(find.text(SaveAnalysisButton.label));
+    await tester.pump();
+
+    expect(find.text(SaveAnalysisButton.savingLabel), findsOneWidget);
+    expect(find.text(SaveAnalysisButton.label), findsNothing);
+
+    saved.saveGate!.complete();
+    await tester.pumpAndSettle();
+    expect(find.text(SaveAnalysisButton.savedLabel), findsOneWidget);
+    expect(saved.rows, hasLength(1));
   });
 
   testWidgets('a failed evidence query shows Insufficient data', (
@@ -222,6 +325,9 @@ void main() {
 
     expect(contexts.calls, isEmpty);
     await scrollTo(tester, find.text(SiteAnalysisSection.sampleLabel));
+    await scrollTo(tester, find.text(SiteAnalysisSection.technicalTitle));
+    await tester.tap(find.text(SiteAnalysisSection.technicalTitle));
+    await tester.pumpAndSettle();
     await scrollTo(tester, find.text('Evidence sources'));
     expect(
       find.descendant(

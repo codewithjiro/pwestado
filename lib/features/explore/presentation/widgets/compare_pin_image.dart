@@ -6,16 +6,16 @@ import 'package:flutter/material.dart';
 import '../../../../app/theme.dart';
 import '../../../comparison/domain/site_comparison.dart';
 
-/// Body and letter colors of the Site A / Site B pins, shared with the
+/// Body and number colors of the first / second location pins, shared with the
 /// panel's slot badges so the list and the map match.
 (Color, Color) compareSlotColors(CompareSlot slot) => switch (slot) {
   CompareSlot.a => (BrandColors.emerald900, BrandColors.mint),
   CompareSlot.b => (BrandColors.mint, BrandColors.emerald900),
 };
 
-/// Draws a lettered comparison pin ("A" or "B") as PNG bytes for a Mapbox
+/// Draws a numbered comparison pin ("1" or "2") as PNG bytes for a Mapbox
 /// point annotation. Same teardrop shape as the selected-site pin, so it
-/// reads as "a site", but with a letter instead of the mint core. The tip
+/// reads as "a site", but with a number instead of the mint core. The tip
 /// is on the bottom edge: anchor the annotation at its bottom.
 Future<Uint8List> renderComparePinPng(
   CompareSlot slot, {
@@ -54,7 +54,7 @@ Future<Uint8List> renderComparePinPng(
 
   final text = TextPainter(
     text: TextSpan(
-      text: slot.letter,
+      text: slot.badge,
       style: TextStyle(
         color: letter,
         fontSize: 20,

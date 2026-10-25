@@ -323,7 +323,7 @@ void main() {
     expect(row[SavedColumns.siteLabel], 'Pinned site');
     expect(row.values.whereType<String>().join(), isNot(contains('Test Road')));
     expect(find.text(SaveAnalysisButton.savedLabel), findsOneWidget);
-    expect(find.textContaining('Analysis saved on this device'), findsOne);
+    expect(find.textContaining('Analysis saved on this phone'), findsOne);
 
     await tester.tap(find.text(SaveAnalysisButton.savedLabel));
     await tester.pumpAndSettle();

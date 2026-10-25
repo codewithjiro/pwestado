@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pwestado/core/models/selected_site.dart';
@@ -68,6 +70,56 @@ void main() {
     await controller().undoDelete(row!);
     expect(state().items.single.id, id);
     expect(repo.rows[id]![SavedColumns.savedAt], savedAt);
+    expect(controller().savedIdOf(analysis), id);
+  });
+
+  test('two saves of the same analysis at once write one record', () async {
+    await settle();
+    final analysis = analysisAt(queryAt(siteA));
+    repo.saveGate = Completer<void>();
+
+    final first = controller().save(site, analysis);
+    final second = controller().save(site, analysis);
+    expect(state().isSaving(analysis), isTrue);
+
+    repo.saveGate!.complete();
+    final outcomes = await Future.wait([first, second]);
+    expect(outcomes[0].id, isNotNull);
+    expect(outcomes[1].id, outcomes[0].id);
+    expect(repo.rows, hasLength(1));
+    expect(state().isSaving(analysis), isFalse);
+  });
+
+  test('a failed save can be retried', () async {
+    await settle();
+    final analysis = analysisAt(queryAt(siteA));
+    repo.failWith = const SavedAnalysisStorageException('Disk full');
+
+    final failed = await controller().save(site, analysis);
+    expect(failed.error, 'Disk full');
+    expect(state().isSaving(analysis), isFalse);
+    expect(controller().savedIdOf(analysis), isNull);
+
+    repo.failWith = null;
+    final retried = await controller().save(site, analysis);
+    expect(retried.id, isNotNull);
+    expect(controller().savedIdOf(analysis), retried.id);
+  });
+
+  test('a failed delete restores the list item and the saved mark', () async {
+    await settle();
+    final analysis = analysisAt(queryAt(siteA));
+    final id = (await controller().save(site, analysis)).id!;
+    expect(state().items, hasLength(1));
+
+    // Every storage call fails now, including the follow-up refresh.
+    repo.failWith = const SavedAnalysisStorageException('Locked');
+    await expectLater(
+      controller().delete(id),
+      throwsA(isA<SavedAnalysisStorageException>()),
+    );
+
+    expect(state().items.single.id, id);
     expect(controller().savedIdOf(analysis), id);
   });
 

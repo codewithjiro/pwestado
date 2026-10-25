@@ -26,9 +26,9 @@ class SavedAnalysisDetailScreen extends ConsumerWidget {
   final int id;
 
   static const historicalTitle = 'Historical saved result';
-  static const useAsA = 'Use as Site A';
-  static const useAsB = 'Use as Site B';
-  static const openOnMap = 'Open site on map';
+  static const useAsA = 'Compare as first location';
+  static const useAsB = 'Compare as second location';
+  static const openOnMap = 'Open this spot on the map';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -175,7 +175,7 @@ class _Body extends ConsumerWidget {
               SitePlaceLabel(site: saved.site),
               SiteTechnicalDetails(site: saved.site),
               const SizedBox(height: AppSpacing.lg),
-              Text('Reuse this site', style: theme.textTheme.labelLarge),
+              Text('Use this saved result', style: theme.textTheme.labelLarge),
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
@@ -207,9 +207,9 @@ class _Body extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Comparison slots keep this saved evidence as-is. Opening the '
-                'site on the map does not search; tap "Find nearby '
-                'competitors" there for current data.',
+                'Comparing uses this saved result exactly as it was saved. '
+                'Opening the spot on the map doesn’t search by itself; tap '
+                '"Find nearby businesses" there for today’s map data.',
                 style: muted,
               ),
             ],
@@ -224,7 +224,7 @@ class _Body extends ConsumerWidget {
   }
 
   static String _total(double? total) =>
-      total == null ? 'Insufficient data' : '${total.toStringAsFixed(1)} / 100';
+      total == null ? 'No score' : '${total.toStringAsFixed(1)} / 100';
 
   /// Aligns the search settings with the saved record, then puts it in
   /// [slot] so the existing comparison rules apply to it unchanged.
@@ -239,7 +239,7 @@ class _Body extends ConsumerWidget {
       ..showSnackBar(
         SnackBar(
           content: Text(
-            '${slot.title} now holds this saved, historical analysis.'
+            'This saved result is now the ${slot.title.toLowerCase()}.'
             '${switched ? ' Search settings switched to ${settingsLabel(query)} to match it.' : ''}',
           ),
         ),
@@ -257,8 +257,8 @@ class _Body extends ConsumerWidget {
       ..showSnackBar(
         const SnackBar(
           content: Text(
-            'Saved site placed on the map. Tap "Find nearby businesses" '
-            'for current OpenStreetMap data.',
+            'Saved spot placed on the map. Tap "Find nearby businesses" '
+            'for today’s OpenStreetMap data.',
           ),
         ),
       );

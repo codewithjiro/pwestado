@@ -256,7 +256,9 @@ class _SavedTile extends ConsumerWidget {
                         for (final slot in CompareSlot.values)
                           PopupMenuItem(
                             value: slot,
-                            child: Text('Compare as ${slot.title}'),
+                            child: Text(
+                              'Compare as ${slot.title.toLowerCase()}',
+                            ),
                           ),
                       ],
                       child: Padding(
@@ -318,7 +320,7 @@ class _SavedTile extends ConsumerWidget {
         ..showSnackBar(
           SnackBar(
             content: Text(
-              '${slot.title} now holds this saved analysis '
+              'This saved result is now the ${slot.title.toLowerCase()} '
               '(${settingsLabel(query)}).',
             ),
           ),
@@ -327,7 +329,12 @@ class _SavedTile extends ConsumerWidget {
       messenger
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(content: Text('Couldn’t open this saved analysis.')),
+          const SnackBar(
+            content: Text(
+              'Couldn’t open this saved result on this device. Try again, '
+              'or open it from the list.',
+            ),
+          ),
         );
     }
   }
