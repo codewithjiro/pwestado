@@ -91,11 +91,12 @@ class _AboutSheet extends StatelessWidget {
             ),
             const _Point(
               icon: Icons.auto_awesome_outlined,
-              title: 'PWESTADO AI Insights',
+              title: 'AI Insights',
               body:
-                  'Optional. Only runs when you tap “Ask AI to explain”, and '
-                  'only sees the map evidence on screen. It explains the '
-                  'score; it never changes it.',
+                  'Optional. Only runs when you tap “Explain this result”, and '
+                  'only sees the map evidence on screen. It summarizes the '
+                  'analysis; it never changes the score or guarantees '
+                  'business success.',
             ),
             const _Point(
               icon: Icons.image_outlined,

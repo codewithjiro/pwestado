@@ -36,13 +36,11 @@ class CompetitorResults extends ConsumerStatefulWidget {
       'or out of date, so this isn’t a complete list and doesn’t show how '
       'busy they are.';
   static const attribution =
-      'Business data © OpenStreetMap contributors (ODbL), via the Overpass '
-      'API.';
+      'Business data © OpenStreetMap contributors (ODbL).';
 
   static const sampleNote =
       'The businesses above are fictional sample data. Live searches use '
-      'OpenStreetMap data (© OpenStreetMap contributors, ODbL) via the '
-      'Overpass API.';
+      'OpenStreetMap data (© OpenStreetMap contributors, ODbL).';
 
   /// Long lists are cut to this many rows until "Show all" is tapped.
   static const initialRows = 30;
@@ -127,8 +125,8 @@ class _Loading extends StatelessWidget {
           const ElapsedWait(),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'We use a free public map server, so this can take up to a '
-            'minute. Thanks for waiting!',
+            'Searching map data can take up to a minute. Thanks for '
+            'waiting!',
             style: theme.textTheme.bodySmall?.copyWith(
               color: context.palette.textSecondary,
             ),
@@ -150,31 +148,29 @@ class _Loading extends StatelessWidget {
 ) => switch (failure) {
   CompetitorFailure.timeout => (
     'The search took too long',
-    'The map data server is slow right now. Please try again in a moment.',
+    'Map data is slow to respond right now. Please try again in a moment.',
     Icons.hourglass_empty,
   ),
   CompetitorFailure.rateLimited => (
     'Too many searches right now',
-    'The free map data server is limiting requests. Please wait a minute, '
-        'then try again.',
+    'Please wait a minute, then try again.',
     Icons.front_hand_outlined,
   ),
   CompetitorFailure.serverBusy => (
-    'The map data server is busy',
+    'Map data is busy right now',
     'It couldn’t run the search just now. This usually clears up in a few '
         'seconds, so try again shortly.',
     Icons.dns_outlined,
   ),
   CompetitorFailure.network => (
     'No internet connection',
-    'We couldn’t reach the map data server. Check your connection and try '
+    'We couldn’t reach the map data. Check your connection and try '
         'again.',
     Icons.wifi_off,
   ),
   CompetitorFailure.badResponse => (
     'Something went wrong',
-    'The map data server sent a reply we couldn’t read'
-        '${statusCode == null ? '' : ' (code $statusCode)'}. Try again.',
+    'We couldn’t read the map data that came back. Try again.',
     Icons.error_outline,
   ),
 };
@@ -384,7 +380,7 @@ class _ResultList extends StatelessWidget {
               if (result.possiblyTruncated) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'The server returned its maximum number of results; some '
+                  'This search reached the maximum number of results; some '
                   'may be missing. Try a smaller radius.',
                   style: muted,
                 ),

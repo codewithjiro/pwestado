@@ -22,7 +22,7 @@ enum MapLoadProblem {
   slow;
 
   String get title => switch (this) {
-    tokenRejected => 'Mapbox rejected the map token',
+    tokenRejected => 'The map is unavailable right now',
     styleFailed => 'The map could not load',
     tilesFailed => 'Map tiles are not loading',
     slow => 'The map is taking too long',
@@ -31,9 +31,8 @@ enum MapLoadProblem {
 
   String get message => switch (this) {
     tokenRejected =>
-      'This build\'s Mapbox access token was refused, so no map can be '
-          'drawn. Rebuild the app with a valid public token (pk.eyJ…). '
-          'Place search and competitor data still need it too.',
+      'The map service didn’t accept this version of the app, so the map '
+          'can’t be shown. Retry, or use my location to set a site.',
     styleFailed =>
       'The map style did not download. Check the internet connection, '
           'then retry.',

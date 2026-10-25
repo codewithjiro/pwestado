@@ -9,23 +9,22 @@ import '../domain/ai_insight.dart';
 import '../state/ai_insights_controller.dart';
 
 abstract final class AiCopy {
-  static const title = 'PWESTADO AI Insights';
-  static const tagline = 'Understand your location, beyond the numbers.';
-  static const ask = 'Ask AI to explain';
-  static const askCompare = 'Ask AI to compare';
-  static const askAgain = 'Ask again';
-  static const label = 'AI-generated explanation based on available map data.';
+  static const title = 'AI Insights';
+  static const tagline = 'A plain-language summary of the analysis.';
+  static const ask = 'Explain this result';
+  static const askAgain = 'Explain again';
+  static const label = 'AI-generated summary of the available analysis.';
   static const privacy =
       'Sends only the counts, distances and score on this screen. No business '
       'names, no exact location, nothing about you.';
   static const notAScore =
-      'AI explains the evidence. It does not change your score or predict '
-      'sales.';
+      'It does not change your score, predict sales or guarantee business '
+      'success.';
   static const demo = 'DEMO INSIGHT · based on sample data';
   static const insufficient =
       'AI needs a complete score to explain. We couldn’t get enough '
       'information for this location yet.';
-  static const loading = 'Writing a plain-language explanation…';
+  static const loading = 'Preparing your explanation…';
 }
 
 /// Explicit, optional AI explanation of an analysis that already exists.
@@ -64,7 +63,7 @@ class AiInsightsCard extends ConsumerWidget {
           FilledButton.tonalIcon(
             onPressed: null,
             icon: const Icon(Icons.auto_awesome_outlined),
-            label: Text(compare ? AiCopy.askCompare : AiCopy.ask),
+            label: const Text(AiCopy.ask),
           ),
         ],
       );
@@ -138,7 +137,7 @@ class _Idle extends StatelessWidget {
           ),
           onPressed: onAsk,
           icon: const Icon(Icons.auto_awesome),
-          label: Text(compare ? AiCopy.askCompare : AiCopy.ask),
+          label: const Text(AiCopy.ask),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(AiCopy.privacy, style: theme.textTheme.bodySmall),
@@ -166,7 +165,7 @@ class _Loading extends StatelessWidget {
             minHeight: 6,
             color: palette.ai,
             backgroundColor: palette.aiBorder,
-            semanticsLabel: 'Waiting for AI explanation',
+            semanticsLabel: 'Preparing your explanation',
           ),
         ),
         Align(
@@ -291,14 +290,15 @@ class _Result extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         Text(AiCopy.label, style: theme.textTheme.labelMedium),
         Text(AiCopy.notAScore, style: theme.textTheme.bodySmall),
-        Row(
+        // Wraps so the button drops below the time at large text sizes.
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Expanded(
-              child: Text(
-                '${insight.model} · ${TimeOfDay.fromDateTime(insight.generatedAt).format(context)}',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: palette.textSecondary,
-                ),
+            Text(
+              'Prepared at ${TimeOfDay.fromDateTime(insight.generatedAt).format(context)}',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: palette.textSecondary,
               ),
             ),
             TextButton.icon(

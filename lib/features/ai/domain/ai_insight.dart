@@ -135,40 +135,34 @@ enum AiFailure {
     badRequest => false,
   };
 
+  static const _unavailableTitle = 'AI Insights is unavailable right now';
+  static const _stillView = 'You can still view the analysis above.';
+
+  /// User-facing copy. Never names the provider, model, key or quota.
   String get title => switch (this) {
-    notConfigured => 'AI Insights isn’t set up in this version',
-    unauthorized => 'Gemini didn’t accept the API key',
-    rateLimited => 'Too many AI requests right now',
-    quotaExhausted => 'The Gemini API quota is used up',
-    modelUnavailable => 'The AI model isn’t available',
-    unavailable => 'AI service is unavailable',
-    timeout => 'The AI took too long to answer',
+    notConfigured ||
+    unauthorized ||
+    quotaExhausted ||
+    modelUnavailable ||
+    unavailable => _unavailableTitle,
+    rateLimited => 'Too many requests right now',
+    timeout => 'The explanation took too long',
     offline => 'No internet connection',
-    invalidResponse => 'We couldn’t read the AI’s answer',
-    badRequest => 'This analysis can’t be sent to AI',
+    invalidResponse => 'We couldn’t prepare a complete explanation',
+    badRequest => 'This result can’t be explained yet',
   };
 
   String get message => switch (this) {
-    notConfigured =>
-      'Your score, map and comparison still work. AI explanations need a '
-          'Gemini API key in this private demo build.',
-    unauthorized =>
-      'The key in this build is invalid or not allowed to use Gemini. Your '
-          'score and evidence are unaffected.',
-    rateLimited => 'Please wait about a minute, then try again.',
-    quotaExhausted =>
-      'This API key reached its Gemini quota. Try again later or tomorrow. '
-          'Everything else keeps working.',
-    modelUnavailable =>
-      'Google no longer offers the Gemini model this build uses. Your score '
-          'and evidence are unaffected.',
-    unavailable => 'The AI service had a problem. Try again in a moment.',
-    timeout => 'Try again in a moment. Your score is already complete.',
+    notConfigured || unauthorized || modelUnavailable => _stillView,
+    quotaExhausted => 'Please try again later. $_stillView',
+    unavailable => 'Please try again in a moment. $_stillView',
+    rateLimited => 'Please wait a moment before trying again.',
+    timeout => 'Please try again. Your score is already complete.',
     offline => 'Connect to the internet, then try again.',
     invalidResponse =>
       'Nothing was shown, to avoid displaying an incomplete explanation. '
-          'Try again.',
-    badRequest => 'Try running the analysis again, then ask AI to explain.',
+          'Please try again.',
+    badRequest => 'Run the analysis again, then tap “Explain this result”.',
   };
 }
 

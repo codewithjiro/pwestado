@@ -101,7 +101,7 @@ enum RadiusInputError {
   tooSmall('That’s too short. Use at least ${SearchRadius.minMeters} m.'),
   tooLarge(
     'That’s too far. The maximum is 2,000 m (2 km), to keep searches '
-    'quick and polite to the free map server.',
+    'quick.',
   );
 
   const RadiusInputError(this.message);

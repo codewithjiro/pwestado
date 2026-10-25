@@ -39,8 +39,8 @@ class SiteAnalysisSection extends ConsumerWidget {
       'does not predict sales, customer demand, foot traffic, profit or '
       'business success.';
   static const assumptionsNote =
-      'These thresholds are simple starting assumptions for this prototype, '
-      'not research-backed values. Only compare locations that use the same '
+      'These thresholds are simple starting assumptions, not '
+      'research-backed values. Only compare locations that use the same '
       'business type and radius.';
 
   @override
@@ -179,8 +179,8 @@ class _Loading extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           const ElapsedWait(),
           Text(
-            'This uses a free public map server, so it can take up to a '
-            'minute. Thanks for waiting!',
+            'Gathering map data can take up to a minute. Thanks for '
+            'waiting!',
             style: _muted(context),
           ),
           Align(

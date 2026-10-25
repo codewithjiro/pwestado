@@ -86,10 +86,7 @@ class CompetitorSummary extends ConsumerWidget {
                         'Looking for nearby businesses…',
                         style: theme.textTheme.titleSmall,
                       ),
-                      Text(
-                        'Public servers can take up to a minute.',
-                        style: muted,
-                      ),
+                      Text('This can take up to a minute.', style: muted),
                       const ElapsedWait(),
                     ],
                   ),

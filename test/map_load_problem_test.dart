@@ -59,7 +59,9 @@ void main() {
     );
 
     expect(find.text(MapLoadProblem.tokenRejected.title), findsOneWidget);
-    expect(find.textContaining('pk.eyJ'), findsOneWidget);
+    // Users never see token or rebuild instructions.
+    expect(find.textContaining('pk.'), findsNothing);
+    expect(find.textContaining('token'), findsNothing);
     await tester.tap(find.text('Retry'));
     expect(retried, 1);
   });

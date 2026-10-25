@@ -21,22 +21,11 @@ class MapUnavailable extends StatelessWidget {
   /// Map height hidden behind the bottom sheet; the card centers above it.
   final double bottomInset;
 
+  /// Users only learn that the map is off; the token-specific fix for each
+  /// [MapboxTokenStatus] is documented in MapboxConfig, not shown here.
   String get _reason => switch (status) {
-    MapboxTokenStatus.missing =>
-      'This build has no Mapbox access token. Rebuild with a public pk. '
-          'token passed via --dart-define=ACCESS_TOKEN=...',
-    MapboxTokenStatus.secret =>
-      'A secret sk. token was supplied. Secret tokens must never ship in an '
-          'app, so it was not used. Rebuild with a public pk. token.',
-    MapboxTokenStatus.invalid =>
-      'The supplied value is not a Mapbox public token (pk.). Rebuild with '
-          'a valid public token.',
-    MapboxTokenStatus.malformed =>
-      'The built-in Mapbox token starts with "pk." but is incomplete or '
-          'damaged, so Mapbox would reject it and the map would stay black. '
-          'Copy the full default public token (pk.eyJ…) from your Mapbox '
-          'account and rebuild.',
     MapboxTokenStatus.ok => '',
+    _ => 'The map can’t be shown in this version of the app.',
   };
 
   @override

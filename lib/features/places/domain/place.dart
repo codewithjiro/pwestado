@@ -106,12 +106,11 @@ enum GeocodingFailure {
   badResponse;
 
   String get message => switch (this) {
-    noToken =>
-      'Place search needs the Mapbox token, which this build does not have.',
+    noToken => 'Place search isn’t available in this version of the app.',
     network => 'No internet connection. Check your connection and try again.',
     timeout => 'The place search took too long. Try again.',
     rateLimited => 'Too many searches right now. Wait a moment and try again.',
-    unauthorized => 'Mapbox rejected this app\'s token, so search is off.',
+    unauthorized => 'Place search is unavailable right now.',
     badResponse => 'The place search returned an unexpected answer.',
   };
 }

@@ -79,8 +79,8 @@ class CompetitorSearchState {
 /// never overwrite a newer view.
 class CompetitorController extends Notifier<CompetitorSearchState> {
   static const throttledNotice =
-      'Fetched moments ago. Showing that copy to avoid overloading the '
-      'public Overpass server; refresh again in a minute.';
+      'Fetched moments ago, so these are the same results. Refresh again '
+      'in a minute for an update.';
 
   int _generation = 0;
   CancelToken? _inFlight;

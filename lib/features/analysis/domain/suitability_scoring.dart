@@ -339,7 +339,7 @@ SuitabilityScore scoreSuitability(ScoringInput input) {
       (complementary?.possiblyTruncated ?? false)) {
     lowConfidence = true;
     warnings.add(
-      'The map server returned its maximum number of results, so some '
+      'The search reached its maximum number of results, so some '
       'counts may be lower than what is really there.',
     );
   }
